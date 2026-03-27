@@ -42,13 +42,14 @@ Specify two to three potential research questions that (1) are related to the to
 -   how does this adoption relate to per-capita energy consumption or prices
 
 -   STEADy - data set describing how feasible solar adoption is based on physical and socioeconomic
-
-    -   identifies where federal/state incentives are applicable\
+    -   identifies where federal/state incentives are applicable\ (this is piece of data I will experiment with)
 
 # Connections to Sustainability
 
 How are your research questions connected to sustainability? What are your personal learning goals related to sustainability for this project? You may wish to refer back to the [UN Sustainable Development Goals](https://sdgs.un.org/goals), the [Inner Development Goals](https://innerdevelopmentgoals.org/), and the [Engineering for One Planet](https://engineeringforoneplanet.org/wp-content/uploads/EOP_Framework_2023.pdf?), [Six Pillars of Climate Justice](https://centerclimatejustice.universityofcalifornia.edu/what-is-climate-justice/), and [Just Transition Principles](https://climatejusticealliance.org/just-transition/) frameworks. As a team, what sustainability background, analysis, and storytellling do you want to include in the scope of your project and in your final artifacts?
 
+
+`#7 affordable and clean energy 
 \
 
 # Data
