@@ -1,0 +1,12 @@
+"0","#could change the data in this way"
+"0","#levels(data2$may_we_post_your_name_on_the_community_dashboard) <- list(""No_anon"" = c('No', 'No (we will write ""anonymous"")'))"
+"0",""
+"0","#this coupld work"
+"0","data_3<- data2 |>"
+"0","    mutate(may_we_post_name = str_replace(may_we_post_your_name_on_the_community_dashboard, ""No-anon""= ""No""))"
+"1","[1m[33mError[39m in `mutate()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `may_we_post_name = str_replace(...)`.[39m
+[1mCaused by error in `str_replace()`:[22m
+[33m![39m unused argument (`No-anon` = ""No"")
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

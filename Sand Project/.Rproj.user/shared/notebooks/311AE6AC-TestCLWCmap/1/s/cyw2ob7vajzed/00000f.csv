@@ -1,0 +1,6 @@
+"0",""
+"0","#data <- read_csv(""~/Downloads/Central Community Impact Data Repository - Sheet2(3).csv"", col_names = TRUE, show_col_types = FALSE)"
+"0",""
+"0","data <- read_csv(""~/Downloads/Central Community Impact Data Repository - Sheet2(3).csv"", "
+"0","                 col_names = c(""Time"", ""is_resident"", ""volunteer_name"", ""comment_source"", ""comment_date"", ""time_of_comment"", ""source_context"", ""resident_name"", ""name_consent"", ""incident_location"", ""comment_consent"", ""location_consent"", ""timing_extras"", ""incident_start_date"", ""incident_time"", ""all_harms"", ""personal_comment"", ""wind direction"", ""sand_mine_location"", ""if_photos"", ""photo_links"", ""photo_links2"", ""can_we_reach_out"", ""if_clwc_maling"",""incident_end_date"", ""weather"", ""sand_mine_owners"", ""certify"", ""email"", ""phone number""), show_col_types = FALSE)"
+"0",""
