@@ -1,4 +1,0 @@
-"0","            # color = ~pallate2(pct_casual),"
-"0","            # label = ~count, "
-"0","             # label = ~paste(""departures/day"","": "", round(count, 2), sep=""""))"
-"0","             #popup = ~paste(""departures/day"","": "", round(count, 2), sep="""")) %>% "
