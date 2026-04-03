@@ -108,6 +108,69 @@ Restate research question 1. Construct 3-4 relevant visualizations that provide 
 
 **peter- make visualization about average grant size and location of residential solar
 
+```{r}
+mass_solar_messy<- read.csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv")
+
+mass_solar_clean<-mass_solar_messy |>
+  janitor::clean_names()
+names(mass_solar_messy)[1:8]
+
+url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
+webpage<-rvest::read_html(url)
+
+county <- webpage |>
+  html_nodes("td:nth-child(3)") |>
+  html_text2() 
+
+median_income <- webpage |>
+  html_nodes("td:nth-child(4)") |>
+  html_text2() 
+
+county_income <- tibble(county=county,median_income=median_income)
+
+
+url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
+webpage<-rvest::read_html(url)
+
+town <- webpage |>
+  html_nodes("td:nth-child(2)") |>
+  html_text2() 
+
+
+median_income_town <- webpage |>
+  html_nodes("td:nth-child(5)") |>
+  html_text2() 
+  
+solar_count_num<-mass_solar_clean|>
+  group_by(county)|>
+  count(facility_type)|>
+ arrange(desc(n))
+
+
+solar_count_num_resid<-solar_count_num|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")
+
+solar_count_num_resid<-solar_count_num_resid|>
+  inner_join(county_income)
+
+
+ggplot(solar_count_num_resid, aes(x=n, y=median_income, fill=county))+
+  geom_col()+
+  ggtitle("Single family Residential Solar adoption by income")+
+labs(x="Number of single family Households with solar", y="Average income per capita")
+
+solar_count_num_resid4<-solar_count_num|>
+  filter(facility_type=="Multi-family residential (4 or more dwelling units per building)")
+
+solar_count_num_resid4<-solar_count_num_resid4|>
+  inner_join(county_income)
+
+ggplot(solar_count_num_resid4, aes(x=n, y=median_income, fill=county))+
+  geom_col()+
+  ggtitle("Multi family home Residential Solar adoption by  income")+
+labs(x="Number of multi family Households with solar", y="Average income per capita")
+```
+```
 
 \
 
