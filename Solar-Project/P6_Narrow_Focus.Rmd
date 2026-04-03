@@ -109,12 +109,18 @@ Restate research question 1. Construct 3-4 relevant visualizations that provide 
 **peter- make visualization about average grant size and location of residential solar
 
 ```{r}
-mass_solar_messy<- read.csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv")
+#reads data
+#mass_solar_messy<- read.csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv")
+mass_solar_messy <- read_csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+    col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
+        `Total Cost with Design Fees` = col_number(), 
+        `Total Grant` = col_number()))
 
 mass_solar_clean<-mass_solar_messy |>
   janitor::clean_names()
-names(mass_solar_messy)[1:8]
+#names(mass_solar_messy)[1:8]
 
+#load scraped data from wiki 
 url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
 webpage<-rvest::read_html(url)
 
@@ -153,7 +159,7 @@ solar_count_num_resid<-solar_count_num|>
 solar_count_num_resid<-solar_count_num_resid|>
   inner_join(county_income)
 
-
+#plots
 ggplot(solar_count_num_resid, aes(x=n, y=median_income, fill=county))+
   geom_col()+
   ggtitle("Single family Residential Solar adoption by income")+
@@ -170,6 +176,77 @@ ggplot(solar_count_num_resid4, aes(x=n, y=median_income, fill=county))+
   ggtitle("Multi family home Residential Solar adoption by  income")+
 labs(x="Number of multi family Households with solar", y="Average income per capita")
 ```
+
+
+```{r}
+
+
+#filters for single family
+ just_residential<-mass_solar_clean|>
+ filter(facility_type=="Residential (3 or fewer dwelling units per building)") 
+ 
+ #creates 
+mean_grant_single_fam<-mass_solar_clean |>
+  group_by(county) |>
+  summarise(mean_grant=mean(total_grant)) |>
+   arrange(desc(mean_grant)) 
+  
+ solar_resid_grant<- solar_count_num_resid |>
+   left_join(mean_grant_single_fam)
+  
+
+ 
+ggplot(solar_resid_grant, aes(x = n, y=mean_grant, color=county))+
+ geom_point()+
+  ggtitle("Comparison of average grant recieved and residential solar per county")+
+labs(y="Average grant recieved ($)", x="Number of Single Residence Solar Permits")
+  
+
+#filters for multi family
+ just_residential4<-mass_solar_clean|>
+ filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
+ 
+ #creates 
+mean_grant_multi_fam<-just_residential4 |>
+  group_by(county) |>
+  summarise(mean_grant=mean(total_grant)) |>
+   arrange(desc(mean_grant)) 
+  
+ solar_resid_grant1<- solar_count_num_resid |>
+   left_join(mean_grant_multi_fam)
+  
+
+ 
+ggplot(solar_resid_grant1, aes(x = n, y=mean_grant, color=county))+
+ geom_point()+
+  ggtitle("Comparison of average grant recieved and number of multi family residential solar per county")+
+labs(y="Average grant recieved ($)", x="Number of multi Residence Solar Permits")
+
+#filters for multi family
+ just_residential4<-mass_solar_clean|>
+ filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
+ 
+ #creates 
+mean_grant_multi_fam<-just_residential4 |>
+  group_by(county) |>
+  summarise(mean_grant=mean(total_grant)) |>
+   arrange(desc(mean_grant)) 
+  
+ solar_resid_grant1<- solar_count_num_resid |>
+   left_join(mean_grant_multi_fam)
+  
+
+ 
+ggplot(solar_resid_grant1, aes(x = n, y=mean_grant, color=county))+
+ geom_point()+
+  ggtitle("Comparison of average grant recieved and number of multi family residential solar per county")+
+labs(y="Average grant recieved ($)", x="Number of multi Residence Solar Permits")
+
+
+```
+This graph shoes the range of mean solar grant money recieved by single family home owners instaling solar. While there are not as many solar sitings in Suffolk County, it had by the highest the mean grant. Comparing this to the earlier visualizations, Bristol county is interesting given the way that it has a low mean grant received, and relatively low income per capita, has some of the most single family residential solar.
+
+The multifamily residential solar plot is also interesting with berkshire county having far higher average grant. This would be interesting for investigating how the grant system works in that county
 ```
 
 \
