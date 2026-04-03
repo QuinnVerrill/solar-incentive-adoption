@@ -139,7 +139,7 @@ Once you have a dataset, it's time to load it into `R`. Don't be frustrated if t
 The table below lists some common import functions and when you would use them.
 
 | Function | Use when |
-|----|----|
+|-------------------------------|-----------------------------------------|
 | `read_csv()` | data are saved in .csv (comma delimited) format - you can save Excel files and Google Sheets in this format |
 | `read_delim()` | data are saved in other delimited formats (tab, space, etc.) |
 | `read_sheet()` | data are in a Google Sheet |
@@ -293,7 +293,7 @@ Find a dataset that is related to your project topic but not built into `R`. Loa
 
 ```{r, fig.width=10}
 library(readr)
-project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/project-sunroof-census_tract.csv", 
+project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/project-sunroof-census_tract.csv", 
     col_types = cols(state_name = col_factor(levels = c("Alabama", 
         "Alaska", "Arizona", "Arkansas", 
         "California", "Colorado", "Connecticut", 

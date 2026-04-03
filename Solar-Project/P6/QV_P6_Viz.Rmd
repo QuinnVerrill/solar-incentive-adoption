@@ -5,9 +5,77 @@ date: "2026-04-03"
 ---
 
 ```{r setup, include=FALSE}
+
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(tmap)
+library(DT)
+library(readr)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Project Sunroof Data
 
--   
+-   Spatial viz for sun exposure & for current solar installations
+
+    -    expand to spatial viz for average income per captia, etc
+
+```{r}
+project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar Project/project-sunroof-census_tract.csv", 
+    col_types = cols(state_name = col_factor(levels = c("Alabama", 
+        "Alaska", "Arizona", "Arkansas", 
+        "California", "Colorado", "Connecticut", 
+        "Delaware", "Florida", "Georgia", 
+        "Hawaii", "Idaho", "Illinois", "Indiana", 
+        "Iowa", "Kansas", "Kentucky", "Louisiana", 
+        "Maine", "Maryland", "Massachusetts", 
+        "Michigan", "Minnesota", "Mississippi", 
+        "Missouri", "Montana", "Nebraska", 
+        "Nevada", "New Hampshire", "New Jersey", 
+        "New Mexico", "New York", "North Carolina", 
+        "North Dakota", "Ohio", "Oklahoma", 
+        "Oregon", "Pennsylvania", "Rhode Island", 
+        "South Carolina", "South Dakota", 
+        "Tennessee", "Texas", "Utah", "Vermont", 
+        "Virginia", "Washington", "West Virginia", 
+        "Wisconsin", "Wyoming"))))
+
+wrangled_sunroof <- project_sunroof_census_tract |>
+  filter(state_name == "Massachusetts") |>
+  drop_na(count_qualified)
+
+names(wrangled_sunroof)
+
+library(usmap)
+county
+
+ggplot(wrangled_sunroof) +
+  geom_map(map = states_map,
+           aes(map_id = state_name,
+               fill = num_stations)) +
+  expand_limits(x = states_map$long, y = states_map$lat) + 
+  scale_fill_gradientn(colours = c("blue", "white", "red"))+
+  theme_map()
+
+
+
+
+mass_tracts <- tidycensus::get_acs(state = "MA",
+                          county = c("Barnstable", "Berkshire", "Bristol", "Dukes", "Essex", "Franklin", "Hampden", "Hampshire", "Middlesex", "Nantucket", "Norfolk", "Plymouth", "Suffolk", "Worcester"),
+                          geography = "tract",
+                          variables = c("B02001_002E","B02001_003E","B01003_001E","B19013_001"),
+                          year=2024,
+                          geometry = TRUE)
+
+tm_shape(twin_cities_tracts) + 
+  tm_polygons(col = "percent_white_alone",
+          style = "pretty",
+          n = 10,
+          border.alpha=.3,
+          palette = "-Purples",
+          title = "2022 US Census") + 
+  tm_layout(title = "Percent White Alone \nby Census Tract",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
