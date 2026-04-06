@@ -20,42 +20,39 @@ library(janitor)
 library(readr)
 library(googlesheets4)
 library(stringr)
-#knitr::opts_chunk$set(tidy = FALSE, message=FALSE, warning=FALSE)
+library(tidygeocoder)
 ```
 
-##Import the data
-
-
-```{r}
-
+##name all the data columns
+```{r, eval=FALSE}
 col_names = c("Time", "is_resident", "volunteer_name", "comment_source", "comment_date", "time_of_comment", "source_context", "resident_name", "name_consent", "incident_location", "comment_consent", "location_consent", "timing_extras", "incident_start_date", "incident_time", "all_harms", "personal_comment", "wind direction", "sand_mine_location", "if_photos", "photo_links", "photo_links2", "can_we_reach_out", "if_clwc_maling","incident_end_date", "weather", "sand_mine_owners", "certify", "email", "phone number"), show_col_types = FALSE)
 
 ```
 
-
+#reading in the data
 ```{r}
-#data2<- read_sheet('https://docs.google.com/spreadsheets/d/1wrzd1ANfwNCgrm3WCnBL_qYAf0PtrrUBOlttzm8SSxs/edit?resourcekey=&gid=1791295176#gid=1791295176')
 
 data <- read_csv("Central Community Impact Data Repository - Sheet2.csv", 
     col_types = cols(Timestamp = col_datetime(format = "%m/%d/%Y %H:%M:%S"), 
         `What date did you receive the comment?` = col_date(format = "%m/%d/%Y"), 
         `What time did you receive the comment?` = col_character(), 
-        `Start date of the incident?` = col_date(format = "%m/%d/%Y"))
-)
-#col_factor(levels = c("No", "Yes", "No (we will write //"anonymous
+        `Start date of the incident?` = col_date(format = "%m/%d/%Y"))) |>
+       janitor::clean_names()
+#data <- read_sheet('https://docs.google.com/spreadsheets/d/1wrzd1ANfwNCgrm3WCnBL_qYAf0PtrrUBOlttzm8SSxs/edit?resourcekey=&gid=1791295176#gid=1791295176')  #straight from google (at some point)
 
-#`Are you a resident submitting personal community comment?` = col_factor(levels = c("No, I am a volunteer submitting comment from another source", "Yes"))
-
-data2<-data |>
-  janitor::clean_names()
-
-#or read_sheet. 
 ```
 
-## Data tidying
 ```{r}
-#divide all_harms into individual columns
-impacts <- data2|>
+#mutate the data
+data <- data|>
+      geocode(what_is_location_of_the_incident_you_are_reporting_please_include_exact_address, method = 'osm', lat = latitude , long = longitude)
+
+ 
+```
+
+## Count of the individual impacts 
+```{r}
+impacts <- data|>
   select(sand_on_property:harm_to_wildlife)|>
   pivot_longer (cols = 1:7, names_to = "type_of_harm", values_to = "value", values_drop_na = FALSE) |>
   filter(value == TRUE)
@@ -67,10 +64,9 @@ ggplot(impacts, aes(x = type_of_harm, fill = type_of_harm))+
 ```
 
 #extra code
-```{r}
+```{r, eval = FALSE}
  
   #rename(`all_harms` =  what_kind_of_impact_or_harm_are_you_reporting_please_check_all_that_apply) |>
-
  mutate(Sand_on_property = str_detect(all_harms, "Sand on property")) |>
   mutate(Airborne_Sand = str_detect(all_harms, "Airborne Sand")) |>
   mutate(Personal_Health = str_detect(all_harms, "Personal Health")) |>
@@ -81,55 +77,9 @@ ggplot(impacts, aes(x = type_of_harm, fill = type_of_harm))+
 
 ```
 
+
+Plot the points:
 ```{r}
-#could change the data in this way
-#levels(data2$may_we_post_your_name_on_the_community_dashboard) <- list("No_anon" = c('No', 'No (we will write "anonymous")'))
-
-#this coupld work
-data_3<- data2 |>
-    mutate(may_we_post_name = str_replace(may_we_post_your_name_on_the_community_dashboard, "No-anon"= "No"))
-
-           
-```
-
-Find a dataset that is related to your project topic but not built into `R`. Load the data into `R`, make sure it is clean, and construct one interesting visualization of the data. Each project team member should find a different data set.
-
-#work on parsing the addresses (manually)
-  (with chatgpt)
-```{r}
-#
-#location <- data2$what_is_location_of_the_incident_you_are_reporting_please_include_exact_address
-
-pattern <- "^([:alnum:]*?)*(?=\\b(Carver|Plymouth)\\b)"
-
-#pattern <- "^(.*?[^[:space:][:punct:]])(?=\\s*\\b(Carver|Plymouth)\\b)"
-
-data3<-data2 |>
-mutate(location_report = str_extract(what_is_location_of_the_incident_you_are_reporting_please_include_exact_address, pattern))
-#mutate(location_report2 = str_extract, location_report()
-
-```
-
-```{r}
-x
-
-```
-
-
-#take clean-ish addresses and provide codes
-```{r}
-install.packages('tidygeocoder')
-library(tidygeocoder)
-
-data3$incident_location <- data3$what_is_location_of_the_incident_you_are_reporting_please_include_exact_address
-
-
-data4 <- data3 %>%
-  geocode(incident_location, method = 'osm', lat = latitude , long = longitude)
-```
-
-```{r}
-#pallate2 <- colorNumeric(palette = c("#0868ac", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026") , domain = departures2$pct_casual)
 
 library (leaflet)
 
