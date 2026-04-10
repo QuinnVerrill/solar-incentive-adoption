@@ -83,10 +83,10 @@ Plot the points:
 
 library (leaflet)
 
-leaflet(data4) %>%
+leaflet(data) %>%
   addTiles() %>% 
   addProviderTiles(providers$CartoDB.Positron)%>%
-  addCircles(data = data4,
+  addCircles(data = data,
              lng = ~longitude, 
              lat =  ~latitude, 
              radius = 4)
