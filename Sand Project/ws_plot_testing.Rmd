@@ -1,0 +1,53 @@
+---
+title: "Weather Data Joins"
+author: "Joe Leedy"
+date: "2026-04-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(janitor)
+library(ggplot2)
+library(xts)
+library(dygraphs)
+```
+
+```{r, cache=TRUE, include=FALSE}
+plym_weather <- read_csv("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand Project/plymouth_weather.csv")
+```
+```{r}
+plym_weather_trim <- plym_weather|>
+  janitor::clean_names() |>
+  select(date, hourly_wind_gust_speed, hourly_wind_speed)
+```
+
+```{r, fig.width=12}
+ggplot(filter(plym_weather_trim, month(date) == 4), aes(x = date)) +
+  geom_point(aes(y = hourly_wind_speed), size = .1)+
+  geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
+  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'red', shape = 3)+
+  theme_classic()+
+  labs(x = "Date",
+       y = "Wind Speed (MPH)")
+```
+
+```{r}
+plym_weather_xts <- xts(
+  plym_weather_trim %>% select(-date),
+  order.by = plym_weather_trim$date
+)
+
+dygraph(plym_weather_xts,main="August Wind Speed" ) |> 
+  dyRangeSelector() |>
+  dyOptions(drawPoints = TRUE, 
+            pointSize = 2,
+            strokeWidth=1,
+            colors = RColorBrewer::brewer.pal(4, "Set1")) |>
+  dyLegend(width = 1200)
+
+```
