@@ -12,6 +12,7 @@ library(sf)
 library(tmap)
 library(DT)
 library(readr)
+library(rvest)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -24,7 +25,8 @@ knitr::opts_chunk$set(echo = TRUE)
 Copy the following code & library commands into the larger P6 file!
 
 ```{r}
-project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/project-sunroof-census_tract.csv", 
+#pulling from sunroof file
+project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/project-sunroof-city.csv", 
     col_types = cols(state_name = col_factor(levels = c("Alabama", 
         "Alaska", "Arizona", "Arkansas", 
         "California", "Colorado", "Connecticut", 
@@ -46,6 +48,90 @@ wrangled_sunroof <- project_sunroof_census_tract |>
   filter(state_name == "Massachusetts") |>
   drop_na(count_qualified)
 
+#scraping city/town data from wikipedia - population
+url<-"https://en.wikipedia.org/wiki/List_of_municipalities_in_Massachusetts"
+webpage<-rvest::read_html(url)
+city <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(1)") |>
+  html_text2() 
+county <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(3)") |>
+  html_text2() 
+type <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(2)") |>
+  html_text2() 
+pop <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(5)") |>
+  html_text2() 
+mass_city <- tibble(county=county,city=city, pop_2020=pop, type=type)
+mass_city <- mass_city|>
+ # grepl("seat", county)
+  mutate(county=sub("(seat)"," ", county))|>
+  mutate(county=sub("\\("," ", county))|>
+  mutate(county=sub("\\)"," ", county))
+
+#scraping city/town median income data from wikipedia
+url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
+webpage<-rvest::read_html(url)
+
+town <- webpage |>
+  html_nodes("td:nth-child(2)") |>
+  html_text2() 
+town <- tibble(town=town) 
+town2 <- town[16:356,c(1)]
+
+median_income <- webpage |>
+  html_nodes("td:nth-child(5)") |>
+  html_text2() 
+median_income <- tibble(median_income=median_income)
+median_income2 <- median_income[16:356,c(1)]
+
+median_income_town <- town2 |>
+  bind_cols(town2, median_income2) |>
+  janitor::clean_names() |>
+  mutate(town=town_1, median_income_per_capita=as.numeric(gsub("[$, ]", "" , median_income)))|>
+  select(town, median_income_per_capita)
+
+#joining data frames
+sunroof_towns <- left_join(wrangled_sunroof, median_income_town, by = c("region_name"="town")) |> 
+  select(region_name, count_qualified, percent_covered, percent_qualified, number_of_panels_median, number_of_panels_total, existing_installs_count, median_income_per_capita) |>
+  drop_na()
+```
+
+```{r}
+ggplot(sunroof_towns, aes(x=median_income_per_capita,y=percent_qualified)) +
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE)+
+  ggtitle("Median Income per Capita vs Percent Qualified for Rooftop Solar", subtitle="Broken down by town/city in MA" )+
+  labs(x="Median Income per Capita ($)", y="Percent Qualified")
+
+ggplot(sunroof_towns, aes(x=median_income_per_capita,y=number_of_panels_median)) +
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE) +
+  ggtitle("Median Income per Capita vs Median Number of Installed Rooftop Solar Panels", subtitle="Broken down by town/city in MA")+
+  labs(x="Median Income per Capita ($)", y="Number of Panels Median")
+
+ggplot(sunroof_towns, aes(x=median_income_per_capita,y=existing_installs_count)) +
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE) +
+  ggtitle("Median Income per Capita vs Existing Rooftop Solar Installations", subtitle="Broken down by town/city in MA")+
+  labs(x="Median Income per Capita ($)", y="Existing Installs")
+
+
+```
+
+```{r}
+#scraping inscentive types from sunroof site
+url2<-"https://sunroof.withgoogle.com/data-explorer/place/ChIJB7hZlAuB44kR5qHpVksRj1I/"
+webpage2<-rvest::read_html(url2)
+
+needham_inscentives <- webpage2 |>
+  html_nodes(".incentive-wide-column") |>
+  html_text2() 
+test<-tibble(needham_inscentives=test)
+```
+
+```{r, eval=FALSE}
 #getting the geography and location data for the counties in MA - this takes forever to run for some reason
 mass_tracts <- tidycensus::get_acs(state = "MA",
                           county = c("Barnstable", "Berkshire", "Bristol", "Dukes", "Essex", "Franklin", "Hampden", "Hampshire", "Middlesex", "Nantucket", "Norfolk", "Plymouth", "Suffolk", "Worcester"),
@@ -54,45 +140,28 @@ mass_tracts <- tidycensus::get_acs(state = "MA",
                           year=2024,
                           geometry = TRUE)
 
+# figure out how to identify what geo id structure i have and how to change it
+# want averages per town
+
 #joining mass_tracts w/ wrangled_sunroof by the geoid & region_name variables, keeping all the tags from mass_tracts to get a complete map
 
 sunroof_tracts <- left_join(mass_tracts, wrangled_sunroof, by = c("GEOID"="region_name"))
-```
 
-```{r}
-#mapping percent qualified by census tract
-tm_shape(sunroof_tracts) + 
-  tm_polygons(col = "percent_qualified",
-          style = "pretty",
-          n = 10,
-          border.alpha=0.03,
-          palette = "-Greens",
-          title = "Percent Qualified") + 
-  tm_layout(title = "Percent of Solar Qualified Houses per Census Tract in MA (Project Sunroof)",
-            frame = TRUE,
-            legend.outside = FALSE)
 
-#mapping number of existing installs w/ cencus tract
-tm_shape(sunroof_tracts) + 
-  tm_polygons(col = "existing_installs_count",
-          style = "pretty",
-          n = 10,
-          border.alpha=0.03,
-          palette = "-Greens",
-          title = "Number of Istallations") + 
-  tm_layout(title = "Number of Existing Solar Installations by Census Tract (Project Sunroof)",
-            frame = TRUE,
-            legend.outside = FALSE)
+####
 
-tm_shape(sunroof_tracts) + 
-  tm_polygons(col = "estimate",
-          style = "pretty",
-          n = 10,
-          border.alpha=0.03,
-          palette = "-Reds",
-          title = "Estimated Median Yearly Income ($)") + 
-  tm_layout(title = "Estimated Yearly Median Income by Census Tract (US Census)",
-            frame = TRUE,
-            legend.outside = FALSE)
-
+census_vars <- c(
+  population = "B01001_001",
+  median_income = "B19013_001"
+)
+mass_towns <- tidycensus::get_acs(
+  geography = "place",
+  variables = census_vars,
+  state = "MA",
+  year = 2024,
+  survey = "acs5",
+  geometry = TRUE,
+  output = "wide") |>
+  mutate(city_name = str_remove(NAME, " (town|city|CDP|Town).*")) |>
+  select(GEOID, city_name, populationE, median_incomeE, geometry)
 ```

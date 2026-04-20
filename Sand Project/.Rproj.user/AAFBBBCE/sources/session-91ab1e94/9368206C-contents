@@ -1,12 +1,12 @@
 ---
 title: "test_clwcmap"
-author: "Anna"
+author: "Anna and joe!!"
 date: "2026-02-24"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r setup, include=FALSE}
@@ -17,45 +17,66 @@ library(leaflet)
 library(ggthemes) 
 library(RColorBrewer)
 library(janitor)
+library(stringr)
 library(readr)
 library(googlesheets4)
-library(stringr)
-#knitr::opts_chunk$set(tidy = FALSE, message=FALSE, warning=FALSE)
-```
-
-##Import the data
+library(dplyr)
 
 
-```{r}
+library(tidygeocoder)
 
-col_names = c("Time", "is_resident", "volunteer_name", "comment_source", "comment_date", "time_of_comment", "source_context", "resident_name", "name_consent", "incident_location", "comment_consent", "location_consent", "timing_extras", "incident_start_date", "incident_time", "all_harms", "personal_comment", "wind direction", "sand_mine_location", "if_photos", "photo_links", "photo_links2", "can_we_reach_out", "if_clwc_maling","incident_end_date", "weather", "sand_mine_owners", "certify", "email", "phone number"), show_col_types = FALSE)
+#plotting libraries
+library(leaflet)
+library(leaflet.extras2)
 
 ```
 
 
+#reading in the data
 ```{r}
-#data2<- read_sheet('https://docs.google.com/spreadsheets/d/1wrzd1ANfwNCgrm3WCnBL_qYAf0PtrrUBOlttzm8SSxs/edit?resourcekey=&gid=1791295176#gid=1791295176')
 
-data <- read_csv("Central Community Impact Data Repository - Sheet2.csv", 
-    col_types = cols(Timestamp = col_datetime(format = "%m/%d/%Y %H:%M:%S"), 
+
+data <- read_sheet('https://docs.google.com/spreadsheets/d/1wrzd1ANfwNCgrm3WCnBL_qYAf0PtrrUBOlttzm8SSxs/edit?resourcekey=&gid=1791295176#gid=1791295176', sheet = 2) 
+
+```
+
+
+#data <- read_csv("Central Community Impact Data Repository - Sheet2.csv", 
+        col_types = cols(Timestamp = col_datetime(format = "%m/%d/%Y %H:%M:%S"), 
         `What date did you receive the comment?` = col_date(format = "%m/%d/%Y"), 
         `What time did you receive the comment?` = col_character(), 
-        `Start date of the incident?` = col_date(format = "%m/%d/%Y"))
-)
-#col_factor(levels = c("No", "Yes", "No (we will write //"anonymous
+        `Start date of the incident?` = col_date(format = "%m/%d/%Y"))) |>
+       janitor::clean_names()
+       
+       
+```{r}
+ # Define jitter amount (e.g., ~1km)
+jitter_val <- 0.0072 # 0.0072 degrees is ~0.5 miles => the locations are randomized up to 1/2 mile from origin
 
-#`Are you a resident submitting personal community comment?` = col_factor(levels = c("No, I am a volunteer submitting comment from another source", "Yes"))
-
-data2<-data |>
-  janitor::clean_names()
-
-#or read_sheet. 
+#mutate the data
+data <- data|>
+      geocode(incident_location, method = 'osm', lat = lat , long = long)
 ```
 
-## Data tidying
+#change the data based upon consent 
 ```{r}
-#divide all_harms into individual columns
-impacts <- data2|>
+data <- data |>
+  mutate(lat2 = case_when(location_consent == "No" ~ lat + runif(n(), -jitter_val, jitter_val),
+                             (location_consent == "Yes") ~ lat)) |>
+  mutate(long2 = if_else(location_consent == "No", (long + runif(n(), -jitter_val, jitter_val)), long))|>
+  mutate(name2 = case_when(name_consent == "Yes" ~ resident_name,
+                           TRUE ~ "Anonymous")) |>
+  mutate(comment2 = case_when(comment_consent == "Yes" ~ personal_comment,
+                           TRUE ~ NA))
+
+
+
+```
+
+
+## Count of the individual impacts 
+```{r}
+impacts <- data|>
   select(sand_on_property:harm_to_wildlife)|>
   pivot_longer (cols = 1:7, names_to = "type_of_harm", values_to = "value", values_drop_na = FALSE) |>
   filter(value == TRUE)
@@ -66,86 +87,85 @@ ggplot(impacts, aes(x = type_of_harm, fill = type_of_harm))+
 
 ```
 
-#extra code
+Plot the points:
 ```{r}
- 
-  #rename(`all_harms` =  what_kind_of_impact_or_harm_are_you_reporting_please_check_all_that_apply) |>
-
- mutate(Sand_on_property = str_detect(all_harms, "Sand on property")) |>
-  mutate(Airborne_Sand = str_detect(all_harms, "Airborne Sand")) |>
-  mutate(Personal_Health = str_detect(all_harms, "Personal Health")) |>
-  mutate(Noise = str_detect(all_harms, "Noise")) |>
-  mutate(Truck_Traffic = str_detect(all_harms, "Truck Traffic")) |>
-  mutate(Safety_concern = str_detect(all_harms, "Safety Concern")) |>
-  mutate(Sedimentation = str_detect(all_harms, "Harm to wildlife"))
-
-```
-
-```{r}
-#could change the data in this way
-#levels(data2$may_we_post_your_name_on_the_community_dashboard) <- list("No_anon" = c('No', 'No (we will write "anonymous")'))
-
-#this coupld work
-data_3<- data2 |>
-    mutate(may_we_post_name = str_replace(may_we_post_your_name_on_the_community_dashboard, "No-anon"= "No"))
-
-           
-```
-
-Find a dataset that is related to your project topic but not built into `R`. Load the data into `R`, make sure it is clean, and construct one interesting visualization of the data. Each project team member should find a different data set.
-
-#work on parsing the addresses (manually)
-  (with chatgpt)
-```{r}
-#
-#location <- data2$what_is_location_of_the_incident_you_are_reporting_please_include_exact_address
-
-pattern <- "^([:alnum:]*?)*(?=\\b(Carver|Plymouth)\\b)"
-
-#pattern <- "^(.*?[^[:space:][:punct:]])(?=\\s*\\b(Carver|Plymouth)\\b)"
-
-data3<-data2 |>
-mutate(location_report = str_extract(what_is_location_of_the_incident_you_are_reporting_please_include_exact_address, pattern))
-#mutate(location_report2 = str_extract, location_report()
-
-```
-
-```{r}
-x
-
-```
 
 
-#take clean-ish addresses and provide codes
-```{r}
-install.packages('tidygeocoder')
-library(tidygeocoder)
-
-data3$incident_location <- data3$what_is_location_of_the_incident_you_are_reporting_please_include_exact_address
-
-
-data4 <- data3 %>%
-  geocode(incident_location, method = 'osm', lat = latitude , long = longitude)
-```
-
-```{r}
-#pallate2 <- colorNumeric(palette = c("#0868ac", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026") , domain = departures2$pct_casual)
-
-library (leaflet)
-
-leaflet(data4) %>%
+leaflet(data) %>%
   addTiles() %>% 
-  addProviderTiles(providers$CartoDB.Positron)%>%
-  addCircles(data = data4,
-             lng = ~longitude, 
-             lat =  ~latitude, 
-             radius = 4)
-            # color = ~pallate2(pct_casual),
-            # label = ~count, 
-             # label = ~paste("departures/day",": ", round(count, 2), sep=""))
-           #  popup = ~paste("incident date"), ")
+  #addProviderTiles(providers$CartoDB.Positron)%>% 
+  addProviderTiles(providers$Esri.WorldImagery)%>% 
+  addCircleMarkers(data = data,
+             lng = ~long2, 
+             lat =  ~lat2, 
+             radius = 5,
+             color = "#FFAC1C",
+             popup = ~paste("<strong>Start Date:</strong> ", incident_start_date, "<br>",
+                            "<strong>Harms Reported:</strong> ", harms_list, "<br>",
+                            "<strong>Comment:</strong> ", comment2),
+                          clusterOptions = markerClusterOptions()) %>%
+  
+  #originaldata 
+   addCircleMarkers(data = data,
+             lng = ~long, 
+             lat =  ~lat, 
+             radius = 5,
+             color = "yellow") %>%
+  markerClusterOptions(
+      spiderfyOnMaxZoom = FALSE,
+      disableClusteringAtZoom = TRUE) %>%  #I dont think this does anything...
+  labelOptions(
+    opacity = 1,
+    textsize = "30px"
+  )
+
 ```
 
+
+```{r}
+labelOptions(
+  interactive = FALSE,
+  clickable = NULL,
+  noHide = NULL,
+  permanent = FALSE,
+  className = "",
+  direction = "auto",
+  offset = c(0, 0),
+  opacity = 1,
+  textsize = "10px",
+  textOnly = FALSE,
+  style = NULL,
+  zoomAnimation = NULL,
+  sticky = TRUE,
+  ...
+)
+
+markerOptions(
+  interactive = TRUE,
+  clickable = NULL,
+  draggable = FALSE,
+  keyboard = TRUE,
+  title = "",
+  alt = "",
+  zIndexOffset = 0,
+  opacity = 1,
+  riseOnHover = FALSE,
+  riseOffset = 250,
+  ...
+)
+
+markerClusterOptions(
+  showCoverageOnHover = TRUE,
+  zoomToBoundsOnClick = TRUE,
+  spiderfyOnMaxZoom = TRUE,
+  removeOutsideVisibleBounds = TRUE,
+  spiderLegPolylineOptions = list(weight = 1.5, color = "#222", opacity = 0.5),
+  freezeAtZoom = FALSE,
+  ...
+)
+```
+
+Note: you may be interested in disabling spiderfyOnMaxZoom option when using disableClusteringAtZoom.
 
 ## Plotting example!! 
 
@@ -184,5 +204,8 @@ leaflet(departures2) %>%
 ```{r}
 #use DT package
 ```
+
+#shiny app
+see the testSandApp folder
 
 
