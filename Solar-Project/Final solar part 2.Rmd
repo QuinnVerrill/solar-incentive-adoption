@@ -12,7 +12,6 @@ library(sf)
 library(tmaptools)
 library(DT)
 library(ggplot2)
-library(tidyverse)
 library(janitor)
 library(GGally)
 library(DT)            # for visualizing data tables 
@@ -37,12 +36,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #imports Data
-mass_solar_messy <- read_csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+mass_solar_messy <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
     col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
         `Total Cost with Design Fees` = col_number(), 
         `Total Grant` = col_number()))
 
 #cleans names
+
 mass_solar_clean<-mass_solar_messy |>
   janitor::clean_names()|>
    mutate(year=year(date_in_service), month=month(date_in_service),weekday=wday(date_in_service), day=day(date_in_service))
@@ -51,6 +51,7 @@ mass_solar_clean<-mass_solar_messy |>
 ```
 
 Income data from WIki
+
 ```{r}
 #income data
 url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
@@ -84,6 +85,7 @@ median_income_town <- webpage |>
 ```
 
 citys/towns
+
 ```{r}
 #income data
 url<-"https://en.wikipedia.org/wiki/List_of_municipalities_in_Massachusetts"
@@ -131,7 +133,6 @@ mass_city_1<-mass_solar_clean|>
     filter(is.na(county))
   
 ```
-
 
 ## % Grants
 
@@ -187,6 +188,7 @@ solar_count_resid4_city<-solar_count_city|>
 
 
 ```
+
 ```{r}
 
 #filters for single family
@@ -215,7 +217,9 @@ ggplot(solar_resid_prec_grant, aes(x = n, y=mean_prec_grant, label=county))+
 labs(y="Precentage covered with grant", x="Number of Single Residence Solar Permits")+
   geom_text(nudge_y = 0.2)
 ```
+
 Repeats for multi family:
+
 ```{r}
 just_residential4_prec<-mass_solar_clean_prec|>
  filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
@@ -237,7 +241,9 @@ ggplot(solar_resid4_grant, aes(x = n, y=mean_grant_prec, label=county))+
 labs(y="Average presentage covered with grant", x="Number of Multi Residence Solar Permits")+
   geom_text(nudge_y = 0.9)
 ```
+
 Single Familt facets:
+
 ```{r}
 
 just_res4_town<-mass_solar_clean_prec|>
@@ -276,8 +282,8 @@ labs(y="Average presentage covered with grant", x="Number of Multi Residence Sol
 
 ```
 
-
 Multi Family Facets
+
 ```{r}
 
 just_res4_town<-mass_solar_clean_prec|>
@@ -318,7 +324,6 @@ labs(y="Average presentage covered with grant", x="Number of Multi Residence Sol
 
 Focus on Provincetown:
 
-
 ```{r}
 just_ptown<- mass_solar_clean|>
   filter(city=="Provincetown")|>
@@ -350,6 +355,7 @@ labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 
 
 ```
+
 ```{r}
 just_ptown<- mass_solar_clean|>
   filter(city=="Provincetown")|>
@@ -380,9 +386,8 @@ ggplot(ptown_grant_year, aes(x=year))+
 labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 ```
 
+-   group by multiple catagories,, and then use count-- make grid of all the graphs
 
-
-- group by multiple catagories,, and then use count-- make grid of all the graphs 
 ```{r}
 all_town<-mass_solar_clean|>
   mutate(has_grant= total_grant>0)|>
@@ -410,6 +415,7 @@ ggplotly(p)
 
 
 ```
+
 ```{r}
 total_solar<-mass_solar_clean|>
   mutate(has_grant= total_grant>0)|>
@@ -432,7 +438,7 @@ ggplotly(p)
 
 ```
 
-```{r} 
+```{r}
 mass_solar_clean
 
 total_solar_type<-mass_solar_clean|>
@@ -455,14 +461,3 @@ labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 ggplotly(p)
 
 ```
-
-- geom text.. xy coordinates make notes of fedral events and things to lable... 
-
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
