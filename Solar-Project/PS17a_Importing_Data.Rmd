@@ -1,0 +1,454 @@
+---
+title: "| Data Science With an Eye Towards Sustainability  \n| Activity A17a: Data Import and Cleaning\n"
+author: "PeternSchnell"
+output:
+  bookdown::html_document2:
+    split_by: none
+    toc: yes
+    toc_float: yes
+
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+#library(tmap)
+library(tmaptools)
+library(DT)
+library(ggplot2)
+knitr::opts_chunk$set(tidy = FALSE, message=FALSE, warning=FALSE)
+```
+
+\
+
+Additional resources and readings:   
+1. [Data Import Cheat Sheet](https://rstudio.github.io/cheatsheets/data-import.pdf)    
+2. [`readr` documentation](https://readr.tidyverse.org/)   
+3. [Data import](https://r4ds.hadley.nz/data-import.html) from Wickham, Çetinkaya-Rundel, and Grolemund   
+4. [Missing data](https://r4ds.hadley.nz/missing-values.html) from Wickham, Çetinkaya-Rundel, and Grolemund     
+5. [Data intake](https://mdsr-book.github.io/mdsr3e/06-dataII.html#data-intake) from Baumer, Kaplan, and Horton    
+6. [Using the import wizard](https://www.youtube.com/watch?v=GtCsjtZBNp4) from Prof. Lendway
+
+\
+
+# Introduction: Data Acquistion
+
+In practice, data science is not as glamorous as building classifiers and creating visualizations all the time. Data scientists spend [80% of their time acquiring and cleaning data](https://www.forbes.com/sites/gilpress/2016/03/23/data-preparation-most-time-consuming-least-enjoyable-data-science-task-survey-says/#755d4d426f63). While the skill of data acquisition is best learned through experience, this section of the course will outline the most common approaches to acquiring data.
+
+When importing and cleaning a dataset, take careful notes in your R Markdown. Explain where you found the dataset. Record the steps you took to clean and import the data in case somebody else needs to replicate your analysis. You should also make sure to cite and credit the creator of the dataset if it is relevant.
+
+\
+
+# Importing Data Through Packages
+
+Many data sets are included in packages available through The Comprehensive R Archive Network (CRAN), including packages like `datasets`, `AER`, `mosaicData`, and [many others](https://vincentarelbundock.github.io/Rdatasets/datasets.html).
+
+## U.S. Census Data
+
+The `tidycensus` package allows us to easily import data from the U.S. Census Bureau's American Community Survey (ACS). The package author also wrote an excellent online book, [Analyzing US Census Data](https://walker-data.com/census-r/index.html) that is filled with many examples. These demographic data can be used to identify inequities in myriad domains related to sustainability, including access to public transit, schools and other educational resources, clean water, clean air, green spaces, produce, different types of healthcare facilities, affordable energy and high-speed internet, and quiet spaces, as well as trends over time (including gentrification) and the effects of policies such as "[redlining](https://dsl.richmond.edu/panorama/redlining)" by the Home Owners' Loan Corporation. The data can be accessed at different resolution levels from states down to tracts (about 4000 people, between 1200 and 8000) and block groups (between 600 and 3000 people), as shown in the following graphic from Esri, the company behind ArcGIS: 
+
+![](https://learn.arcgis.com/en/related-concepts/GUID-D7AA4FD1-E7FE-49D7-9D11-07915C9ACC68-web.png)
+
+As a quick example, we'll examine data from Hennepin County and Ramsey County, home of the Twin Cities -- Minneapolis and Saint Paul, Minnesota. Specifically, we'll examine relationships between the racial composition of census tracts and the corresponding median household incomes. We'll use the following variables from the ACS:
+   
+- `median_household_income` (`B19013_001`)
+- `total_population` (`B01003_001E`)
+- `white_alone` (only race listed is White) (`B02001_002E`)
+- `african_american_alone` (only race listed is African American) (`B02001_003E`)
+
+First, let's download and plot the data on the census tract level (you can do this at different resolution levels such as block groups by changing the `geography` input):
+
+```{r,results='hide',cache=TRUE}
+twin_cities_tracts <- tidycensus::get_acs(state = "MN",
+                          county = c("Hennepin", "Ramsey"),
+                          geography = "tract",
+                          variables = c("B02001_002E","B02001_003E","B01003_001E","B19013_001"),
+                          year=2022,
+                          geometry = TRUE)%>%
+  select(-moe)%>%
+  pivot_wider(names_from=variable,values_from=estimate)%>%
+  mutate(percent_white_alone=100*`B02001_002`/`B01003_001`,percent_african_american_alone=100*`B02001_003`/`B01003_001`)%>%
+  rename(median_household_income=`B19013_001`)%>%
+  select(-c(`B02001_002`,`B02001_003`,`B01003_001`))%>%
+  filter(!is.na(median_household_income))%>%
+  mutate(state_code=str_sub(GEOID,1,2),county_code=str_sub(GEOID,3,5))%>% # first two numbers are the state code and the next three are the county code
+  left_join(select(fips_codes,c(state_code,county_code,county)))%>%
+  mutate(county = str_remove(county, " County"))
+```
+
+```{r,echo=FALSE,fig.width=20}
+twin_cities_tracts_clean<-as_tibble(twin_cities_tracts%>%st_drop_geometry())
+DT::datatable(twin_cities_tracts_clean, options = list(pageLength = 5))
+```
+
+
+```{exercise}
+tm_shape(twin_cities_tracts) + 
+  tm_polygons(col = "percent_white_alone",
+          style = "pretty",
+          n = 10,
+          border.alpha=.3,
+          palette = "-Purples",
+          title = "2022 US Census") + 
+  tm_layout(title = "Percent White Alone \nby Census Tract",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
+
+```{exercise}
+tm_shape(twin_cities_tracts) + 
+  tm_polygons(col = "median_household_income",
+          style = "pretty",
+          n = 10,
+          border.alpha=.3,
+          palette = "-Purples",
+          title = "2022 US Census") + 
+  tm_layout(title = "Median Household Income \nby Census Tract",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
+
+```{exercise}
+tm_shape(twin_cities_tracts) + 
+  tm_polygons(col = "percent_african_american_alone",
+          style = "jenks",
+          n = 10,
+          border.alpha=.3,
+          palette = "-Purples",
+          title = "2022 US Census") + 
+  tm_layout(title = "Percent African American Alone \nby Census Tract",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
+
+\
+
+# Finding Existing Data Sets
+
+```{r, echo=FALSE,fig.cap="An example Google search."}
+knitr::include_graphics("http://faculty.olin.edu/dshuman/DS/csv_search.jpg")
+```
+
+The easiest way to get data is by finding an existing dataset that has been created by somebody else. Search engines such as Google can be excellent tools, especially when using file type filters. For example, if you are looking for a dataset about movie reviews, you might search for "`movie reviews filetype:csv`". You could also try searching for other common filetypes that are compatible with R, such as `.tsv`, `.xls`, `.xlsx`, or `rds`.
+
+
+Another good resource for datasets are compendiums of datasets such as the excellent and continuously-evolving [awesome-public-datasets](https://github.com/caesar0301/awesome-public-datasets) GitHub repo, [Our World in Data](https://ourworldindata.org/), [Kaggle datasets](https://www.kaggle.com/datasets), the [Environmental Justice Screening and Mapping Tool](https://pedp-ejscreen.azurewebsites.net/), or the [data.world website](https://data.world/) website. You can find links to other similar compendiums at the end of the awesome-public-datasets page.
+
+\
+
+# Loading Datasets
+
+Once you have a dataset, it's time to load it into `R`. Don't be frustrated if this step takes some time. 
+
+The table below lists some common import functions and when you would use them.
+
+Function | Use when
+-----------|---------------
+`read_csv()`| data are saved in .csv (comma delimited) format - you can save Excel files and Google Sheets in this format 
+`read_delim()` | data are saved in other delimited formats (tab, space, etc.)  
+`read_sheet()` | data are in a Google Sheet  
+`st_read()` | reading in a shapefile
+
+A few tips:
+
+ * When reading in data from a file, one trick is to use the Import Wizard to help write the code. DO NOT use it to import the data as you will need the code to read in the data in order to knit your document. Prof. Lendway has posted a [video tutorial on the Import Wizard](https://www.youtube.com/embed/GtCsjtZBNp4)   
+ * The import functions `read_csv`, `read_csv2`, and `read_tsv` from the `readr` package are faster than their counterparts `read.csv`, `read.csv2`, and `read.tsv` from the `base` package for large files. They also have more flexible parsers (e.g., for dates, times, percentages). We recommend you use these functions instead of the `base` functions like `read.csv`. The package `fread` has other import functions and is also faster for large datasets. For smaller data sets (say 1MB or less), there won't be that much difference in time for the three different packages. 
+ * `read_csv2` is for semi-colon delimited files, whereas `read_csv` is for comma delimited files.
+ * The `readr` functions automatically guess the type of data in each column (e.g., character, double, integer). You will often see a message just after the import telling you what it chose for each column. If you think there is an issue, you can use the function `problems()` to detect problems, and/or specify how the columns should be imported. See the section on "column specification" in the [Data Import Cheat Sheet](https://rstudio.github.io/cheatsheets/data-import.pdf) for more info.
+ * If you have trouble importing a dataset, try to first import it into a different data such as Google Sheets or Excel tool and then export it as a TSV or CSV before reading it into `R`.
+ * For really messy data, [OpenRefine](http://openrefine.org/) is complicated but powerful ([YouTube demo](https://www.youtube.com/watch?v=WCRexQXYFrI)). 
+ * When you are importing a large file, you might want to first try importing a subset of the data. For example, if you want to take the first 17 rows only, you can write `read_csv("file.csv",n_max=17)`
+ * Similarly, you might want to skip the first $n$ lines of the file when importing, select only certain columns to read in, or choose a random subset of the rows. See the cheat sheet for instructions on these tasks or just google!   
+ * If you have multiple files with the same structure (e.g., a financial statement for every month, a separate data sheet for each different product), you can simultaneously read them all in and automatically stack the data on top of each other into a single frame, via a a command like `read_csv(c("prod1.csv","prod2.csv","prod3.csv"),id="product")`. If there are too many files to manually type out the file names, you can first use the function `list.files()` to make a list of all files in a folder whose name matches a regular expression (e.g., start with "prod")
+
+
+\
+
+# Checking the Imported Datasets
+
+After reading in new data, it is ALWAYS a good idea to do some quick checks of the data. Here are two first steps that are especially useful:
+
+1. Open the data in the spreadsheet-like viewer and take a look at it. Sort it by different variables by clicking on the arrows next to the variable name. Make sure there isn't anything unexpected.
+
+2. Do a quick summary of the data. The code below is one way to do this. For quantitative variables, it provides summary statistics and will let you know if there are missing values. For factors (they need to be factors, not just character variables - the `mutate()` changes them to factors), it shows you counts for the top categories and tells you if there are any missing values. 
+
+```
+data_name %>% 
+  mutate(across(where(is.character), as.factor)) %>% 
+  summary()
+```
+
+\
+
+# Cleaning Datasets
+
+**Ensuring the Variable Names Are Consistent**
+
+First we want to make sure the variable names have a consistent syntax. The `clean_names()` function in the `janitor` package (not part of `tidyverse` so needs to be loaded separately) is a good way to do this. Here is an example:
+
+```{r}
+county_health<-read_csv("http://faculty.olin.edu/dshuman/DS/county_health_2023.csv")
+names(county_health)[1:8]
+```
+
+Some of these variable names start with numbers or have spaces, percent symbols, parentheses, etc. Let's automatically clean them up:
+
+```{r}
+county_health2<-county_health |>
+  janitor::clean_names()
+names(county_health2)[1:8]
+```
+
+Much nicer! You can also choose a different desired naming convention than the default "snake" if you prefer:
+
+```{r}
+county_health3<-county_health |>
+  janitor::clean_names(case="lower_camel")
+names(county_health3)[1:8]
+```
+
+
+**Cleaning Categorical Variables**
+
+Next we want to make sure the factors are "clean." For example, `true` and `TRUE` and `T` will be three different factors. The easiest way to manage this is to look at the levels for the factor and replace values with a messy factor to a clean one. For example, the following code cleans up values in true/false values in column `X`:
+
+```{r eval=FALSE}
+levels(df$X) <- list(TRUE=c("T", "true"), FALSE=c("f", "FALSE", "N", "No"))
+```
+
+```{exercise, name="Clean up the levels on the Messy IMDB 5000 dataset"}
+We will use a slightly "messied" version of the [IMDB 5000 Dataset](https://www.kaggle.com/datasets/carolzhangdc/imdb-5000-movie-dataset).^[Another option for part (e) would be to leave them as strings and then use string processing to define the levels. We'll learn this technique soon.]
+
+a. Use `read_csv` to load the IMDB 5000 dataset from "http://faculty.olin.edu/dshuman/DS/imdb_5000_messy.csv", and save it as imdbMessy.
+b. Print out the variable names.
+c. Examine the color variable. What are the existing values? 
+d. How often does each occur? Hint: `table`
+e. The `read_csv` read in the `color` values as strings. For this exercise, let's convert them to factor using the code: `imdbMessy$color<-as.factor(imdbMessy$color)`.
+f. Select what you think is the best value for each level and replace "messy" versions of the value with clean ones by assigning to the `levels()` function as shown above. How many entries are there for each level now?
+
+```
+```{r}
+
+#a. Use `read_csv` to load the IMDB 5000 dataset from "http://faculty.olin.edu/dshuman/DS/imdb_5000_messy.csv", and save it as imdbMessy.
+
+imdbMessy=read_csv("http://faculty.olin.edu/dshuman/DS/imdb_5000_messy.csv")
+
+#b. Print out the variable names.
+names(imdbMessy)[1:8]
+#c. Examine the color variable. What are the existing values? 
+unique(imdbMessy$color)
+
+#d. How often does each occur? Hint: `table`
+table(imdbMessy$color)
+
+#e. The `read_csv` read in the `color` values as strings. For this exercise, let's convert them to factor using the code: `imdbMessy$color<-as.factor(imdbMessy$color)`.
+imdbMessy$color<-as.factor(imdbMessy$color)
+
+#f. Select what you think is the best value for each level and replace "messy" versions of the value with clean ones by assigning to the `levels()` function as shown above. How many entries are there for each level now?
+
+#levels(imbdMessy$color) <- list(color = c("color", "Color", "COLOR"), B&W = c("Black and White", "B&W"))
+
+```
+
+
+
+**Addressing Missing Data**
+
+Finally, you should look for and address missing data, encoded as `NA` (not available) in `R`. There is no single formula for dealing with NAs. You should first look to see how many NAs appear in each column:
+
+```{r eval=FALSE}
+colSums(is.na(imdbMessy))
+```
+
+Study the individual observations with NAs carefully. Why do you think they are missing? Are certain types of observations more likely to have NAs?
+
+You have several options for dealing with NAs:
+
+* You can remove observations with one or more NAs (see [`complete.cases`](http://stat.ethz.ch/R-manual/R-patched/library/stats/html/complete.cases.html)).
+* You can remove columns with many NA values.
+* You can replace NAs with a reasonable value (called *imputing* values). This could be a default value (like zero), or the average for a column.
+* You can use packages such as `missForest` that fill in missing values with statistical predictions.^[This is dangerous unless you know what you are doing.]
+
+There is no perfect approach to dealing with NAs, and you must think carefully about how removing or replacing missing data may affect your work.
+
+```{exercise,name="Address NA values in the Messy IMDB 5000 dataset"}
+
+
+a. Print out the number of NAs in each of the columns.
+
+colSums(is.na(imdbMessy))
+
+b. Consider the `actor_1_facebook_likes` column. Take a look at a few of the records that have NA values. Why do you think there are NAs?
+  
+  they dont have any likes
+
+c. Create a new dataframe that removes observations that have NAs for `actor_1_facebook_likes`.
+imbd_no_like<- imbdMessy|> 
+  complete.cases("actor_1_facebook_likes" )
+  
+d. Create a second new dataframe that replaces NAs in `actor_1_facebook_likes` with 0.
+
+
+```
+
+```{r}
+#a. Print out the number of NAs in each of the columns.
+
+colSums(is.na(imdbMessy))
+
+#b. Consider the `actor_1_facebook_likes` column. Take a look at a few of the records that have NA values. Why do you think there are NAs?
+# they dont have any likes
+
+#c. Create a new dataframe that removes observations that have NAs for `actor_1_facebook_likes`.
+ complete.cases("actor_1_facebook_likes" )
+#d. Create a second new dataframe that replaces NAs in `actor_1_facebook_likes` with 0.
+
+ #imbd_like<- imdbMessy|> gsub("NA","0", actor_1_facebook_likes)
+  #imbd_like<- imdbMessy|> str_replace( actor_1_facebook_likes, "NA","0")
+
+```
+
+\
+
+# Additional Practice
+
+```{exercise}
+Find a dataset that is related to your project topic but not built into `R`. Load the data into `R`, make sure it is clean, and construct one interesting visualization of the data. Each project team member should find a different data set.
+  
+```
+
+
+```{r}
+mass_solar_messy<- read.csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv")
+
+mass_solar_clean<-mass_solar_messy |>
+  janitor::clean_names()
+names(mass_solar_messy)[1:8]
+```
+
+
+
+
+```{r}
+mass_solar_nohouse<-mass_solar_clean|>
+  filter(facility_type!=c("Multi-family residential (4 or more dwelling units per building)", "Residential (3 or fewer dwelling units per building)"))
+
+mass_solar_industrial<-mass_solar_clean|>
+  filter(facility_type==c("Industrial", "Agricultural"))
+
+mass_solar_clean1<-mass_solar_clean|>
+  group_by(facility_type)|>
+  summarize(mean_output_facility=mean(estimated_annual_production_k_whr))
+
+table(mass_solar_clean$facility_type)
+table(mass_solar_nohouse$facility_type)
+
+#pairs(mass_solar_nohouse[,c(1,2, 17)], bg="lightblue",panel=panel.smooth)
+
+unique(mass_solar_clean$facility_type)
+
+
+
+
+
+
+
+```
+```{r}
+mass_solar_industrial<-mass_solar_clean|>
+  filter(facility_type==c("Industrial", "Agricultural"))
+
+
+
+mass_solar_clean1<- mass_solar_industrial|> 
+  group_by(city)|>
+count(facility_type)|>
+  arrange(desc(n))|>
+  head(20)
+mass_solar_clean1
+
+ggplot(mass_solar_clean1, aes(y=city, x=n, fill=facility_type))+
+  geom_col()+
+ggtitle("Top Industrial and agricultural solar ")+
+labs(x="Number of sites", y="City/Town")
+       
+
+
+ggplot(mass_solar_industrial, aes(x=facility_type))+
+  geom_bar()+
+  facet_grid(~city)
+```
+
+
+```{r}
+mass_solar_house<-mass_solar_clean|>
+  filter(facility_type==c("Multi-family residential (4 or more dwelling units per building)", "Residential (3 or fewer dwelling units per building)"))
+
+mass_solar_house1<- mass_solar_house|> 
+  group_by(city)|>
+count(facility_type)|>
+  arrange(desc(n))|>
+  head(20)
+mass_solar_house1
+
+ggplot(mass_solar_house1, aes(y=fct_infreq(city), x=n, fill=facility_type))+
+  geom_col()+
+ggtitle("Top city's with Residential solar")+
+labs(x="Number of sites", y="City/Town")
+
+```
+
+
+```{exercise}
+ggplot(mass_solar_clean, aes(x=date_in_service, fill=capacity_dc_k_w))+
+    geom_bar(color=capacity_dc_k_w)+
+ggtitle("Solar")+
+labs(x="Type", y="kwhr")
+
+```
+
+```{r}
+ggplot(mass_solar_clean, aes(x=facility_type)) + 
+        geom_bar(fill="purple") +
+        labs(x="Facility type", y="Number")+
+   theme(legend.position="none", axis.text.x=element_text(angle=60))
+ 
+ #mass_solar_messy
+ #sample_n(mass_solar_messy, 
+          set.seed(10000)
+mass_solar_messy1<- sample_n( mass_solar_messy, size = 100, replace = FALSE)
+ 
+ggplot(mass_solar_clean, aes(y=facility_type, x=estimated_annual_production_k_whr, fill=total_cost_with_design_fees))+
+geom_point()+
+ggtitle("Solar")+
+labs(x="Type", y="kwhr")+
+  theme(legend.position="none", axis.text.x=element_text(angle=60))
+
+#ggplot(mass_solar_clean, aes(x=date_in_service, y=n()))+
+#    geom_point()+
+#  geom_line()+
+#ggtitle("Solar")+
+#labs(x="Type", y="kwhr")
+  #coord_flip() 
+
+
+
+
+
+
+```
+map('county', 'iowa', fill = TRUE, col = palette())
+
+```{r}
+
+country_map <- map('county', 'massachusetts', fill = TRUE, col = palette())
+
+read_sf("C:/Users/pschnell/Downloads/Data Science sust/townssurvey_shp/TOWNSSURVEY_POLY.shp")
+
+```
+
+
+
+
+

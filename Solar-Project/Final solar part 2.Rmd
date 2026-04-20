@@ -1,0 +1,468 @@
+---
+title: "PS-Solar_phase_2"
+output: html_document
+date: "2026-04-10"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+#library(tmap)
+library(tmaptools)
+library(DT)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(DT)            # for visualizing data tables 
+library(janitor)       # for automatically renaming variables
+library(ggmap)         # for mapping points on maps
+library(RColorBrewer)  # for color palettes
+library(sf)            # for working with spatial data
+library(leaflet)       # for highly customizable mapping
+library(ggthemes)      # for more themes (including theme_map())
+library(gplots)        # for col2hex() function
+library(socviz)        # for the US county map
+library(usmap)         # for plot_usmap
+library(usdata)       # for abbr2state function
+library(choroplethr)   # another option to make choropleths
+library(choroplethrMaps)
+library(maps)
+library(rvest)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data loading and processing
+
+```{r}
+#imports Data
+mass_solar_messy <- read_csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+    col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
+        `Total Cost with Design Fees` = col_number(), 
+        `Total Grant` = col_number()))
+
+#cleans names
+mass_solar_clean<-mass_solar_messy |>
+  janitor::clean_names()|>
+   mutate(year=year(date_in_service), month=month(date_in_service),weekday=wday(date_in_service), day=day(date_in_service))
+
+
+```
+
+Income data from WIki
+```{r}
+#income data
+url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
+webpage<-rvest::read_html(url)
+
+county <- webpage |>
+  html_nodes("td:nth-child(3)") |>
+  html_text2() 
+
+median_income <- webpage |>
+  html_nodes("td:nth-child(4)") |>
+  html_text2() 
+
+county_income <- tibble(county=county,median_income=median_income)
+
+
+url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
+webpage<-rvest::read_html(url)
+
+town <- webpage |>
+  html_nodes("td:nth-child(2)") |>
+  html_text2() 
+
+
+median_income_town <- webpage |>
+  html_nodes("td:nth-child(5)") |>
+  html_text2() 
+  
+  
+
+```
+
+citys/towns
+```{r}
+#income data
+url<-"https://en.wikipedia.org/wiki/List_of_municipalities_in_Massachusetts"
+webpage<-rvest::read_html(url)
+
+city <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(1)") |>
+  html_text2() 
+
+county <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(3)") |>
+  html_text2() 
+
+type <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(2)") |>
+  html_text2() 
+
+pop <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(5)") |>
+  html_text2() 
+
+land_area <- webpage |>
+  html_nodes(".static-row-numbers td:nth-child(7)") |>
+  html_text2() 
+
+mass_city <- tibble(county=county,city=city, pop_2020=pop, type=type, land_area=land_area)
+
+mass_city
+
+mass_city<-mass_city|>
+ # grepl("seat", county)
+  mutate(county=sub("(seat)"," ", county))|>
+  mutate(county=sub("\\("," ", county))|>
+  mutate(county=sub("\\)"," ", county))
+
+
+
+mass_city_1<-mass_solar_clean|>
+  select("city", "county")|>
+  unique()
+  
+  mass_city
+  
+  na<- mass_city|>
+    filter(is.na(county))
+  
+```
+
+
+## % Grants
+
+```{r}
+mass_solar_clean
+mass_solar_clean_prec<- mass_solar_clean|>
+  filter(total_cost_with_design_fees!=0)|>
+  mutate(grant_prec = 100*(total_grant/total_cost_with_design_fees))|>
+  arrange(desc(grant_prec))|>
+  select(-"installer", -"module_manufacturer", -"inverter_manufacturer", -"meter_manufacturer", -"utility", -"x3rd_party_owner", -"srec_eligible", -"estimated_annual_production_k_whr")
+
+mass_solar_clean_prec<-mass_solar_clean_prec[-c(1,2,3),]
+  
+ # filter(grant_prec >= 0)
+#    filter(!is.na(as.numeric(grant_prec))\
+
+ #mass_solar_clean_prec$grant_prec <- gsub("\\D", "", mass_solar_clean_prec$grant_prec)
+
+ mass_solar_clean_prec$grant_prec<- str_replace_all(mass_solar_clean_prec$grant_prec,"NaN","0")
+  mass_solar_clean_prec$grant_prec<- str_replace_all(mass_solar_clean_prec$grant_prec,"NA","0")
+ 
+   which(is.na(as.character( mass_solar_clean_prec$grant_prec)))
+
+  
+
+mass_solar_clean_prec
+
+```
+
+```{r}
+#Counting solar
+solar_count_num<-mass_solar_clean|>
+  group_by(county)|>
+  count(facility_type)|>
+ arrange(desc(n))
+
+solar_count_city<-mass_solar_clean|>
+  group_by(city)|>
+  count(facility_type)|>
+ arrange(desc(n))
+
+solar_count_num
+
+solar_count_num_resid<-solar_count_num|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")
+
+
+solar_count_resid_city<-solar_count_city|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")
+
+solar_count_resid4_city<-solar_count_city|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")
+
+
+```
+```{r}
+
+#filters for single family
+ just_residential<-mass_solar_clean_prec|>
+ filter(facility_type=="Residential (3 or fewer dwelling units per building)") 
+ just_residential
+ 
+ 
+ #creates 
+mean_prec_grant_single_fam<-just_residential |>
+  group_by(county) |>
+  summarise(mean_prec_grant=mean(as.numeric(grant_prec))) |>
+   arrange(desc(mean_prec_grant)) 
+
+  mean_prec_grant_single_fam
+  
+ solar_resid_prec_grant<- solar_count_num_resid |>
+   left_join(mean_prec_grant_single_fam)
+  
+ solar_resid_prec_grant
+ 
+ 
+ggplot(solar_resid_prec_grant, aes(x = n, y=mean_prec_grant, label=county))+
+ geom_point()+
+  ggtitle("Comparison of average grant precentage recieved and number of single family residential solar per county")+
+labs(y="Precentage covered with grant", x="Number of Single Residence Solar Permits")+
+  geom_text(nudge_y = 0.2)
+```
+Repeats for multi family:
+```{r}
+just_residential4_prec<-mass_solar_clean_prec|>
+ filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
+ 
+ #creates 
+mean_grant_prec_multi_fam<-just_residential4_prec |>
+  group_by(county) |>
+  summarise(mean_grant_prec=mean(as.numeric(grant_prec))) |>
+   arrange(desc(mean_grant_prec)) 
+  
+ solar_resid4_grant<- solar_count_num_resid |>
+   left_join(mean_grant_prec_multi_fam)
+  
+
+ 
+ggplot(solar_resid4_grant, aes(x = n, y=mean_grant_prec, label=county))+
+ geom_point()+
+  ggtitle("Comparison of average grant recieved and number of multi family residential solar per county")+
+labs(y="Average presentage covered with grant", x="Number of Multi Residence Solar Permits")+
+  geom_text(nudge_y = 0.9)
+```
+Single Familt facets:
+```{r}
+
+just_res4_town<-mass_solar_clean_prec|>
+ filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
+ 
+ #creates 
+mean_grant4_city<-just_res4_town |>
+  group_by(city) |>
+  summarise(mean_grant_prec=mean(as.numeric(grant_prec))) |>
+   arrange(desc(mean_grant_prec)) |>
+  filter(mean_grant_prec!=0)
+
+  
+mean_grant4_city
+
+ solar_resid4_city_grant<- solar_count_resid4_city |>
+   inner_join(mean_grant4_city)
+  
+  
+solar_resid4_city_grant<- solar_resid4_city_grant|>
+inner_join(mass_city)
+  
+solar_resid4_city_grant<- solar_resid4_city_grant|>
+  mutate(county1=sub("\\s+$", "", county))
+
+#unique(solar_resid4_city_grant)
+ 
+ggplot(solar_resid4_city_grant, aes(x = n, y=mean_grant_prec, label=city))+
+ geom_point()+
+  facet_grid(~county1)+
+  ggtitle("Comparison of average grant recieved and number of multi family residential solar per county")+
+labs(y="Average presentage covered with grant", x="Number of Multi Residence Solar Permits")+
+  geom_text(nudge_x = 3000, nudge_y = 3)
+  
+
+
+```
+
+
+Multi Family Facets
+```{r}
+
+just_res4_town<-mass_solar_clean_prec|>
+filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
+ 
+ #creates 
+mean_grant4_city<-just_res4_town |>
+  group_by(city) |>
+  summarise(mean_grant_prec=mean(as.numeric(grant_prec))) |>
+   arrange(desc(mean_grant_prec)) |>
+  filter(mean_grant_prec!=0)
+
+  
+mean_grant4_city
+
+ solar_resid4_city_grant<- solar_count_resid4_city |>
+   inner_join(mean_grant4_city)
+  
+  
+solar_resid4_city_grant<- solar_resid4_city_grant|>
+inner_join(mass_city)
+  
+solar_resid4_city_grant<- solar_resid4_city_grant|>
+  mutate(county1=sub("\\s+$", "", county))
+
+#unique(solar_resid4_city_grant)
+ 
+ggplot(solar_resid4_city_grant, aes(x = n, y=mean_grant_prec, label=city))+
+ geom_point()+
+  facet_grid(~county1)+
+  ggtitle("Comparison of average grant recieved and number of multi family residential solar per county")+
+labs(y="Average presentage covered with grant", x="Number of Multi Residence Solar Permits")+
+  geom_text(nudge_x = 3000, nudge_y = 3)
+  
+
+
+```
+
+Focus on Provincetown:
+
+
+```{r}
+just_ptown<- mass_solar_clean|>
+  filter(city=="Provincetown")|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+just_ptown
+
+just_ptown_year<-just_ptown|>
+  count(year)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_ptown<-just_ptown|>
+  group_by(year)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+ptown_grant_year<-just_ptown_year|>
+  left_join(grants_ptown)
+
+ptown_grant_year
+  
+ggplot(ptown_grant_year, aes(x=year))+
+  geom_col(aes(y=num_instal))+
+  geom_col(aes(y=count), fill="green")+
+  ggtitle("Provincetown single family solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+
+
+```
+```{r}
+just_ptown<- mass_solar_clean|>
+  filter(city=="Provincetown")|>
+  filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+just_ptown
+
+just_ptown_year<-just_ptown|>
+  count(year)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_ptown<-just_ptown|>
+  group_by(year)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+ptown_grant_year<-just_ptown_year|>
+  left_join(grants_ptown)
+
+ptown_grant_year
+  
+ggplot(ptown_grant_year, aes(x=year))+
+  geom_col(aes(y=num_instal))+
+  geom_col(aes(y=count), fill="green")+
+  ggtitle("Provincetown multi family solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+```
+
+
+
+- group by multiple catagories,, and then use count-- make grid of all the graphs 
+```{r}
+all_town<-mass_solar_clean|>
+  mutate(has_grant= total_grant>0)|>
+  group_by(city, year)|>
+  summarise(count=n(), grant=sum(has_grant, na.rm=TRUE))
+
+
+
+
+all_town<-all_town|>
+  mutate(year=as.numeric(year))
+all_town
+
+library(plotly)
+p <- ggplot(all_town, aes(x=year))+
+  geom_col(aes(y=count))+
+  geom_col(aes(y=grant), fill="green")+
+  facet_wrap(~city)+
+  ggtitle("Provincetown multi family solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+  
+
+ggplotly(p)
+
+
+
+```
+```{r}
+total_solar<-mass_solar_clean|>
+  mutate(has_grant= total_grant>0)|>
+  group_by(year)|>
+  summarise(count=n(), grant=sum(has_grant, na.rm=TRUE))
+
+total_solar
+
+  library(plotly)
+
+p <- ggplot(total_solar, aes(x=year))+
+  geom_col(aes(y=count))+
+  geom_col(aes(y=grant), fill="green")+
+  ggtitle("Mass total solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+  
+
+ggplotly(p)
+
+
+```
+
+```{r} 
+mass_solar_clean
+
+total_solar_type<-mass_solar_clean|>
+  mutate(has_grant= total_grant>0)|>
+  group_by(facility_type, year)|>
+  summarise(count=n(), grant=sum(has_grant, na.rm=TRUE))
+
+total_solar_type
+
+  library(plotly)
+
+p <- ggplot(total_solar_type, aes(x=year))+
+  geom_col(aes(y=count))+
+  geom_col(aes(y=grant), fill="green")+
+  facet_wrap(~facility_type, scales="free")
+  ggtitle("Mass total solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+  
+
+ggplotly(p)
+
+```
+
+- geom text.. xy coordinates make notes of fedral events and things to lable... 
+
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
