@@ -15,6 +15,9 @@ library(janitor)
 library(ggplot2)
 library(xts)
 library(dygraphs)
+library(readxl)
+library(stringr)
+library(tidygeocoder)
 ```
 
 ```{r, cache=TRUE, include=FALSE}
@@ -51,3 +54,129 @@ dygraph(plym_weather_xts,main="August Wind Speed" ) |>
   dyLegend(width = 1200)
 
 ```
+
+# trying to read and clean excel file
+
+```{r, cache=TRUE}
+mine_locs <- read_excel("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand Project/mine_locs_2024.xlsx")
+
+mine_locs <- mine_locs |>
+  mutate(
+    volume_norm = case_when(
+      is.na(volume) ~ 0.5,
+      TRUE ~ (volume - min(volume, na.rm = TRUE)) /
+             (max(volume, na.rm = TRUE) - min(volume, na.rm = TRUE))
+    )
+  )
+
+clean_address <- function(x) {
+  x |>
+    # Remove map/lot/parcel references (various formats)
+    str_remove_all("\\bMap\\s+[\\w-]+(?:\\s+Lot\\s+[\\w,+\\s-]+)?") |>
+    str_remove_all("\\bLot\\s+[\\w,+\\s-]+") |>
+
+    # Remove parenthetical annotations: (Permit 2019), (Solar/Mining), etc.
+    str_remove_all("\\([^)]*\\)") |>
+
+    # Remove slash-separated tags that aren't part of the address
+    # e.g. "/Solar Circle" is actually a street name — keep; "/Cranebrook Site" — drop
+    # Strategy: only drop if the slash-term contains no digits and is all caps-like
+    str_remove_all("(?<=/)[A-Z][A-Za-z]+(?:\\s[A-Za-z]+)*(?=\\s|$)") |>
+
+    # Remove trailing asterisks and "**" markers
+    str_remove_all("\\*+") |>
+
+    # Remove "ZBA N Permits"-style notes
+    str_remove_all("\\bZBA\\b.*") |>
+
+    # Normalize street abbreviations
+    str_replace_all("\\bRd\\.?\\b", "Road") |>
+    str_replace_all("\\bSt\\.?\\b", "Street") |>
+    str_replace_all("\\bAve\\.?\\b", "Avenue") |>
+    str_replace_all("\\bBlvd\\.?\\b", "Boulevard") |>
+    str_replace_all("\\bDr\\.?\\b", "Drive") |>
+
+    # Normalize "a/k/a" aliases — keep only the first name
+    str_remove_all("\\s+a/k/a.*") |>
+
+    # Collapse multiple whitespace
+    str_squish()
+}
+
+is_geocodable <- function(x) {
+  # Must have either a house number OR a clearly identifiable road name
+  # Vague entries: "[combined volume...]", "North Carver*", single "*", etc.
+  !str_detect(x, "^\\[") &          # combined-volume bracket lines
+    !str_detect(x, "^\\*+$") &      # lone asterisk lines
+    str_length(x) > 5               # catch any remaining stubs
+}
+
+default_town  <- "Plymouth, MA"
+
+mine_locs <- mine_locs |>
+  mutate(
+    address_clean = clean_address(location),
+
+    # Append town context for geocoding
+    address_full  = paste0(address_clean, ", ", default_town),
+
+    # Known multi-town overrides (keyword-based)
+    address_full  = case_when(
+      str_detect(location, "Wareham")  ~ paste0(address_clean, ", Wareham, MA"),
+      str_detect(location, "Halifax")  ~ paste0(address_clean, ", Halifax, MA"),
+      str_detect(location, "Kingston") ~ paste0(address_clean, ", Kingston, MA"),
+      str_detect(location, "Carver")   ~ paste0(address_clean, ", Carver, MA"),
+      str_detect(location, "Bourne")   ~ paste0(address_clean, ", Bourne, MA"),
+      str_detect(location, "Onset")    ~ paste0(address_clean, ", Onset, MA"),
+      TRUE                             ~ address_full
+    ),
+
+    geocodable = is_geocodable(address_clean)
+  )
+
+to_geocode <- mine_locs |> filter(geocodable)
+
+geocoded <- geocode_combine(
+  to_geocode,
+  queries = list(
+    list(method = "census", address = "address_full"),
+    list(method = "osm",    address = "address_full")
+  ),
+  global_params = list(),   # queries already reference the column directly
+  lat    = "lat",
+  long   = "lon"
+)
+```
+
+# create leaflet plot
+
+```{r}
+leaflet(geocoded) %>%
+  addTiles() %>% 
+  #addProviderTiles(providers$CartoDB.Positron)%>% 
+  addProviderTiles(providers$Esri.WorldImagery)%>% 
+  addCircleMarkers(data = geocoded,
+             lng = ~lon, 
+             lat =  ~lat, 
+             radius = ~volume_norm * 10,
+             color = "#FFAC1C")
+             #popup = ~paste("<strong>Start Date:</strong> ", incident_start_date, "<br>",
+                            #"<strong>Harms Reported:</strong> ", harms_list, "<br>",
+                            #"<strong>Comment:</strong> ", comment2),
+                          #clusterOptions = markerClusterOptions()) %>%
+  
+  #originaldata 
+   #addCircleMarkers(data = data,
+             #lng = ~long, 
+             #lat =  ~lat, 
+             #radius = 5,
+             #color = "yellow") %>%
+  #markerClusterOptions(
+      #spiderfyOnMaxZoom = FALSE,
+      #disableClusteringAtZoom = TRUE) %>%  #I dont think this does anything...
+  #labelOptions(
+    #opacity = 1,
+    #textsize = "30px"
+  #)
+```
+
