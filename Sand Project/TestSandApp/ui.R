@@ -13,7 +13,7 @@ library(shiny)
 fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("Sand mining map"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
