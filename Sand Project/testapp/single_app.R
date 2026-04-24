@@ -19,18 +19,19 @@ disabled_harms <- setdiff(all_harms, available_harms) # Disable the ones that do
 ui <- fluidPage(
   
   # Title
-  titlePanel("Sand Mines and Incidents in SE Massachussets"),
+ # titlePanel("Sand Mines and Incidents in SE Massachussets"),
   
-  # div(
-  #   style = "
-  #   background-color: #1f4e79;
-  #   color: white;
-  #   padding: 20px;
-  #   font-size: 28px;
-  #   font-weight: bold;
-  # ",
-  #   "Community Land & Water Coalition Map"
-  # ),
+  div(
+    img(src = "clwc_logo.png", height = "45px", style = "margin-right: 15px;"),
+    style = "
+    color: #1f4e79;
+    background-color: white;
+    padding: 20px;
+    font-size: 28px;
+    font-weight: bold;
+  ",
+    "Sand Mines and Incidents in SE Massachussets"
+  ),
   
   tags$head(
     tags$style(HTML("
@@ -81,26 +82,7 @@ ui <- fluidPage(
   "))
   ),
 
-  # tags$head(
-  #   tags$style(HTML("
-  #     body {
-  #       background-color: #f2f2f2;
-  #       font-family: 'Oswald', sans-serif;
-  #     }
-  #   "))
-  # ),
-  # 
-  # div(
-  #   style = "
-  #     background-color: #1f4e79;
-  #     color: white;
-  #     padding: 20px;
-  #     font-size: 28px;
-  #     font-weight: bold;
-  #   ",
-  #   "Community Land & Water Coalition Map"
-  # ),
-  
+ 
   # Layout
   sidebarLayout(
     
@@ -137,6 +119,32 @@ ui <- fluidPage(
     
     
     mainPanel(
+      
+      div(
+        style = "display: flex; gap: 30px; margin-bottom: 15px;",
+        
+        div(
+          style = "padding: 10px; border: 1px solid #ddd; border-radius: 6px;",
+          strong("Total Reports"),
+          br(),
+          textOutput("total_reports")
+        ),
+        
+        div(
+          style = "padding: 10px; border: 1px solid #ddd; border-radius: 6px;",
+          strong("Most Recent Report"),
+          br(),
+          textOutput("latest_report")
+        ),
+        
+        div(
+          style = "padding: 10px; border: 1px solid #ddd; border-radius: 6px;",
+          strong("Sand Mine Count"),
+          br(),
+          textOutput("total_mines")
+        )
+      ),
+      
       # Plot output
       leafletOutput("comment_map", height = 600)    
       )
@@ -180,7 +188,23 @@ sandmine_color <- "#FF8B28"
     df
   })
   
+  # total reports
+  output$total_reports <- renderText({
+    df <- filtered_data()
+    nrow(df)
+  })
+  
+  output$total_mines <- renderText({
+    df <- geocoded_2()
+    nrow(df)
+  })
  
+  #recent reports
+  output$latest_report <- renderText({
+    df <- filtered_data()
+    if (nrow(df) == 0) return("No reports")
+    max(df$comment_date, na.rm = TRUE)
+  })
  
   
   #leaflet map
