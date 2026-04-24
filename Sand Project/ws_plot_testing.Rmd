@@ -18,6 +18,7 @@ library(dygraphs)
 library(readxl)
 library(stringr)
 library(tidygeocoder)
+library(httr2)
 ```
 
 ```{r, cache=TRUE, include=FALSE}
@@ -34,7 +35,7 @@ plym_weather_trim <- plym_weather|>
   select(date, hourly_wind_gust_speed, hourly_wind_speed)
 ```
 
-```{r, fig.width=12}
+```{r}
 ggplot(filter(plym_weather_trim, month(date) == 4), aes(x = date)) +
   geom_point(aes(y = hourly_wind_speed), size = .1)+
   geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
@@ -55,8 +56,8 @@ dygraph(plym_weather_xts,main="August Wind Speed" ) |>
   dyOptions(drawPoints = TRUE, 
             pointSize = 2,
             strokeWidth=1,
-            colors = RColorBrewer::brewer.pal(4, "Set1")) |>
-  dyLegend(width = 1200)
+            colors = RColorBrewer::brewer.pal(4, "Set1")) #|>
+  #dyLegend(width = 1200)
 
 ```
 
@@ -198,5 +199,46 @@ leaflet(geocoded) %>%
     #opacity = 1,
     #textsize = "30px"
   #)
+```
+
+# trying to pull up to date ws/wd data
+```{r}
+get_openmeteo_wind <- function(lat, lon, start_date, end_date, tz = "America/New_York") {
+  
+  resp <- request("https://archive-api.open-meteo.com/v1/archive") |>
+    req_url_query(
+      latitude              = lat,
+      longitude             = lon,
+      start_date            = as.character(start_date),
+      end_date              = as.character(end_date),
+      hourly                = "wind_speed_10m,wind_gusts_10m",
+      wind_speed_unit       = "mph",
+      timezone              = tz
+    ) |>
+    req_perform() |>
+    resp_body_json()
+  
+  data.frame(
+    date                   = as.POSIXct(unlist(resp$hourly$time), format = "%Y-%m-%dT%H:%M", tz = tz),
+    hourly_wind_speed      = unlist(resp$hourly$wind_speed_10m),
+    hourly_wind_gust_speed = unlist(resp$hourly$wind_gusts_10m)
+  )
+}
+
+# Usage
+plym_weather_fresh <- get_openmeteo_wind(
+  lat        = 41.9090,
+  lon        = -70.7279,
+  start_date = "2025-01-01",
+  end_date   = Sys.Date()
+)
+
+ggplot(plym_weather_fresh, aes(x = date)) +
+  geom_point(aes(y = hourly_wind_speed), size = .1)+
+  geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
+  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'red', shape = 3)+
+  theme_classic()+
+  labs(x = "Date",
+       y = "Wind Speed (MPH)")
 ```
 

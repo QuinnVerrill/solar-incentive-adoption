@@ -22,9 +22,9 @@ library(readr)
 library(googlesheets4)
 library(dplyr)
 
-
+library(httr2) # for accessing API for weather data
 library(tidygeocoder)
-
+library(plotly)
 #plotting libraries
 library(leaflet)
 library(leaflet.extras2)
@@ -34,10 +34,66 @@ library(leaflet.extras2)
 
 #reading in the data
 ```{r}
-
-
 data <- read_sheet('https://docs.google.com/spreadsheets/d/1wrzd1ANfwNCgrm3WCnBL_qYAf0PtrrUBOlttzm8SSxs/edit?resourcekey=&gid=1791295176#gid=1791295176', sheet = 2) 
 
+```
+
+# load plymouth weather data
+```{r}
+get_openmeteo_wind <- function(lat, lon, start_date, end_date, tz = "America/New_York") {
+  
+  resp <- request("https://archive-api.open-meteo.com/v1/archive") |>
+    req_url_query(
+      latitude              = lat,
+      longitude             = lon,
+      start_date            = as.character(start_date),
+      end_date              = as.character(end_date),
+      hourly                = "wind_speed_10m,wind_gusts_10m",
+      wind_speed_unit       = "mph",
+      timezone              = tz
+    ) |>
+    req_perform() |>
+    resp_body_json()
+  
+  data.frame(
+    date                   = as.POSIXct(unlist(resp$hourly$time), format = "%Y-%m-%dT%H:%M", tz = tz),
+    hourly_wind_speed      = unlist(resp$hourly$wind_speed_10m),
+    hourly_wind_gust_speed = unlist(resp$hourly$wind_gusts_10m)
+  )
+}
+
+# Usage
+plym_weather_fresh <- get_openmeteo_wind(
+  lat        = 41.9090,
+  lon        = -70.7279,
+  start_date = "2025-01-01",
+  end_date   = Sys.Date()
+)
+```
+
+# plot complaints recieved vs. ws
+```{r}
+incident_dates <- as.POSIXct(data$incident_start_date, format = "%Y-%m-%d %H:%M:%S", tz = "America/New_York")
+
+incidents_weather <- plym_weather_fresh |>
+  mutate(
+    incident = map_lgl(.data$date, ~ any(abs(difftime(.x, incident_dates, units = "mins")) <= 30))
+  )
+
+winds<- ggplot(filter(plym_weather_fresh), aes(x = date)) +
+  geom_point(aes(y = hourly_wind_speed), size = .1)+
+  geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
+  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'blue', shape = 3)+
+  geom_point(
+    data = filter(incidents_weather, incident),
+    aes(x = date, y = hourly_wind_speed),
+    color = "red", size = 5, shape = 21, fill = "red"
+  ) +
+  theme_classic()+
+  labs(x = "Date",
+       y = "Wind Speed (MPH)")
+
+ggplotly(winds)
 ```
 
 
