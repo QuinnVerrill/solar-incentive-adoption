@@ -83,7 +83,7 @@ incidents_weather <- plym_weather_fresh |>
 winds<- ggplot(filter(plym_weather_fresh), aes(x = date)) +
   geom_point(aes(y = hourly_wind_speed), size = .1)+
   geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
-  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'blue', shape = 3)+
+  #geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'blue', shape = 3)+
   geom_point(
     data = filter(incidents_weather, incident),
     aes(x = date, y = hourly_wind_speed),
