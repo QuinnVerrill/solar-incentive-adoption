@@ -199,6 +199,48 @@ leaflet(geocoded) %>%
     #opacity = 1,
     #textsize = "30px"
   #)
+
+
+ggplot(mine_locs, aes(x = size, y=volume))+
+  geom_point()
+
+mine_locs <- mine_locs |>
+  mutate(
+    mining_reason_clean = case_when(
+      # Cranberry + Solar combos first (before individual matches)
+      str_detect(tolower(mining_reason), "cranberry") & 
+        str_detect(tolower(mining_reason), "solar")       ~ "Cranberry/Solar",
+      
+      # Cranberry (any variation)
+      str_detect(tolower(mining_reason), "cranberry|blueberry") ~ "Cranberry",
+      
+      # Solar (any variation)
+      str_detect(tolower(mining_reason), "solar")         ~ "Solar",
+      
+      # Development/Subdivision
+      str_detect(tolower(mining_reason), "subdivision|residential|new construction|development|hide church") ~ "Development",
+      
+      # Commercial/Industrial
+      str_detect(tolower(mining_reason), "commercial|commericia|business|industrial|mining") ~ "Commercial/Industrial",
+      
+      # Golf
+      str_detect(tolower(mining_reason), "golf")          ~ "Golf",
+      
+      # Agriculture (non-cranberry)
+      str_detect(tolower(mining_reason), "agriculture|reconfigure bogs") ~ "Agriculture",
+      
+      # Passthrough for NA and anything unmatched
+      is.na(mining_reason)                                ~ NA_character_,
+      TRUE                                                ~ mining_reason
+    )
+  )
+
+# Check consolidation results
+table(mine_locs$mining_reason_clean, useNA = "always")
+
+ggplot(mine_locs, aes(x = fct_infreq(mining_reason_clean)))+
+  geom_bar(fill = "dodgerblue3", color = "dodgerblue3")
+
 ```
 
 # trying to pull up to date ws/wd data
