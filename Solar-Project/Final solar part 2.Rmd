@@ -8,20 +8,14 @@ date: "2026-04-10"
 library(tidyverse)
 library(tidycensus)
 library(sf)
-#library(tmap)
-library(tmaptools)
 library(DT)
 library(ggplot2)
 library(janitor)
 library(GGally)
-library(DT)            # for visualizing data tables 
-library(janitor)       # for automatically renaming variables
-library(ggmap)         # for mapping points on maps
 library(RColorBrewer)  # for color palettes
 library(sf)            # for working with spatial data
 library(leaflet)       # for highly customizable mapping
 library(ggthemes)      # for more themes (including theme_map())
-library(gplots)        # for col2hex() function
 library(socviz)        # for the US county map
 library(usmap)         # for plot_usmap
 library(usdata)       # for abbr2state function
@@ -155,8 +149,6 @@ mass_solar_clean_prec<-mass_solar_clean_prec[-c(1,2,3),]
   mass_solar_clean_prec$grant_prec<- str_replace_all(mass_solar_clean_prec$grant_prec,"NA","0")
  
    which(is.na(as.character( mass_solar_clean_prec$grant_prec)))
-
-  
 
 mass_solar_clean_prec
 
