@@ -120,7 +120,7 @@ is_geocodable <- function(x) {
     str_length(x) > 5               # catch any remaining stubs
 }
 
-default_town  <- "Plymouth, MA"
+default_town  <- "Carver, MA"
 
 mine_locs <- mine_locs |>
   mutate(
@@ -136,6 +136,7 @@ mine_locs <- mine_locs |>
       str_detect(location, "Kingston") ~ paste0(address_clean, ", Kingston, MA"),
       str_detect(location, "Carver")   ~ paste0(address_clean, ", Carver, MA"),
       str_detect(location, "Bourne")   ~ paste0(address_clean, ", Bourne, MA"),
+      str_detect(location, "Plymouth")   ~ paste0(address_clean, ", Plymouth, MA"),
       str_detect(location, "Onset")    ~ paste0(address_clean, ", Onset, MA"),
       TRUE                             ~ address_full
     ),
