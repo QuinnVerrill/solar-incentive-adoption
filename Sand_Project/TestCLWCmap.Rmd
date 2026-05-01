@@ -40,6 +40,7 @@ AQ_loc <- read_sheet('https://docs.google.com/spreadsheets/d/1qYJc4dS9dhQw8c8Qqt
 
 ```
 
+
 # load plymouth weather data
 ```{r}
 get_openmeteo_wind <- function(lat, lon, start_date, end_date, tz = "America/New_York") {
@@ -113,7 +114,9 @@ jitter_val <- 0.0072 # 0.0072 degrees is ~0.5 miles => the locations are randomi
 
 #mutate the data
 data <- data|>
-      geocode(incident_location, method = 'osm', lat = lat , long = long)
+    #mutate(incident_location = as.character(incident_location)) %>%
+    #mutate(incident_location = as.character(incident_location)) |>
+    geocode(incident_location, method = 'osm', lat = lat , long = long)
 ```
 
 #change the data based upon consent 
