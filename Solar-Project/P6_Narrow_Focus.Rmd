@@ -8,7 +8,40 @@ output:
     toc: no
 ---
 
-Each group should hand in one html document for the following exercises. Throughout the exercises, keep in mind that your research topics, questions, and data might evolve throughout the course of the project. This checkpoint is simply a first step in narrowing these down.
+Each group should hand in one html document for the following exercises. Throughout the exercises, keep in mind that your research topics, questions, and data might evolve throughout the course of the project. This checkpoint is simply a first step in narrowing these down
+```{r}
+
+#install.packages("tmap")
+
+library(tidyverse)
+library(tidycensus)
+library(sf)
+#library(tmap)
+library(tmaptools)
+library(DT)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(DT)            # for visualizing data tables 
+library(janitor)       # for automatically renaming variables
+library(ggmap)         # for mapping points on maps
+library(RColorBrewer)  # for color palettes
+library(sf)            # for working with spatial data
+library(leaflet)       # for highly customizable mapping
+library(ggthemes)      # for more themes (including theme_map())
+library(gplots)        # for col2hex() function
+library(socviz)        # for the US county map
+library(usmap)         # for plot_usmap
+library(usdata)       # for abbr2state function
+library(choroplethr)   # another option to make choropleths
+library(choroplethrMaps)
+library(maps)
+library(rvest)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
 
 \
 
@@ -258,15 +291,121 @@ How is solar adoption and type of solar facility variable within socioeconomic f
 
 ***quinn - make visualization about hot spots of solar adoption and sun exposure using sunroof data. 
 
+
+## Project Sunroof Data
+
+-   Spatial viz for sun exposure & for current solar installations
+
+    -    expand to spatial viz for average income per captia, etc
+    -   expand to spatial viz for average income per captia, etc
+
+Copy the following code & library commands into the larger P6 file!
+
+```{r}
+project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar Project/project-sunroof-census_tract.csv", 
+project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/project-sunroof-census_tract.csv", 
+    col_types = cols(state_name = col_factor(levels = c("Alabama", 
+        "Alaska", "Arizona", "Arkansas", 
+        "California", "Colorado", "Connecticut", 
+
+@@ -40,42 +42,57 @@ project_sunroof_census_tract <- read_csv("~/Documents/GitHub/solar-incentive-ado
+        "Tennessee", "Texas", "Utah", "Vermont", 
+        "Virginia", "Washington", "West Virginia", 
+        "Wisconsin", "Wyoming"))))
+
+wrangled_sunroof <- project_sunroof_census_tract |>
+  filter(state_name == "Massachusetts") |>
+  drop_na(count_qualified)
+
+names(wrangled_sunroof)
+
+library(usmap)
+county
+
+ggplot(wrangled_sunroof) +
+  geom_map(map = states_map,
+           aes(map_id = state_name,
+               fill = num_stations)) +
+  expand_limits(x = states_map$long, y = states_map$lat) + 
+  scale_fill_gradientn(colours = c("blue", "white", "red"))+
+  theme_map()
+
+
+
+
+#getting the geography and location data for the counties in MA - this takes forever to run for some reason
+mass_tracts <- tidycensus::get_acs(state = "MA",
+                          county = c("Barnstable", "Berkshire", "Bristol", "Dukes", "Essex", "Franklin", "Hampden", "Hampshire", "Middlesex", "Nantucket", "Norfolk", "Plymouth", "Suffolk", "Worcester"),
+                          geography = "tract",
+                          variables = c("B02001_002E","B02001_003E","B01003_001E","B19013_001"),
+                          variables = c("B02001_002E","B02001_003E","B01003_001E","B19013_001", "B07011_001"),
+                          year=2024,
+                          geometry = TRUE)
+
+tm_shape(twin_cities_tracts) + 
+  tm_polygons(col = "percent_white_alone",
+#joining mass_tracts w/ wrangled_sunroof by the geoid & region_name variables, keeping all the tags from mass_tracts to get a complete map
+
+sunroof_tracts <- left_join(mass_tracts, wrangled_sunroof, by = c("GEOID"="region_name"))
+```
+
+```{r}
+#mapping percent qualified by census tract
+tm_shape(sunroof_tracts) + 
+  tm_polygons(col = "percent_qualified",
+          style = "pretty",
+          n = 10,
+          border.alpha=0.03,
+          palette = "-Greens",
+          title = "Percent Qualified") + 
+  tm_layout(title = "Percent of Solar Qualified Houses per Census Tract in MA (Project Sunroof)",
+            frame = TRUE,
+            legend.outside = FALSE)
+
+#mapping number of existing installs w/ cencus tract
+tm_shape(sunroof_tracts) + 
+  tm_polygons(col = "existing_installs_count",
+          style = "pretty",
+          n = 10,
+          border.alpha=.3,
+          palette = "-Purples",
+          title = "2022 US Census") + 
+  tm_layout(title = "Percent White Alone \nby Census Tract",
+            frame = FALSE,
+            legend.outside = TRUE)
+          border.alpha=0.03,
+          palette = "-Greens",
+          title = "Number of Istallations") + 
+  tm_layout(title = "Number of Existing Solar Installations by Census Tract (Project Sunroof)",
+            frame = TRUE,
+            legend.outside = FALSE)
+
+tm_shape(sunroof_tracts) + 
+  tm_polygons(col = "estimate",
+          style = "pretty",
+          border.alpha=0.03,
+          palette = "-Reds",
+          title = "Estimated Median Yearly Income ($)") + 
+  tm_layout(title = "Estimated Yearly Median Income by Census Tract (US Census)",
+            frame = TRUE,
+            legend.outside = FALSE)
+            
+```
 ***joe - fit linear model about house income and solar rates 
 \
+
 
 # Next Steps
 
 Identify next steps in your analysis. Do you need additional data? Do you need to do more cleaning or wrangling? How might you narrow your research questions/hypotheses? What additional visualizations would be helpful?
 
+For our first question, our initial visualizations focused on the total grants recieved for residential solar over the entire timeframe of the data. Our next step will be to focus more granularly on the change of this trend over time. We also want to look into this data at a town by town level or even a census tract level, and then investigate the incentive given by specific towns with reference to our current visualizations. 
+
+For our second question, we visualized the sunroof data to see initial trends of socio-economic factors influence residential solar adoption. Our next step here is to start to do more research into scraping and accessing data sets involving the types of incentives offered by townships across Massachusetts, and then to try to visualize those with respect to the afluence of these towns, and adoption rates. These is also opportunity  to look into statistical correlations of these factors. Currently, these next steps will focus on the town level, and as we develop our code, will zoom back our to state wide analysis. 
 \
 
 # Contributions
 
 Summarize each group member's specific contributions to this checkpoint assignment.
+
+Peter worked on the visualizations for answering the first research question, and Quinn worked on the visualizations for investigating the second research question. 

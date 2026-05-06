@@ -1,0 +1,269 @@
+---
+title: "Peter's Solar Final Draft 5_2"
+output: html_document
+date: "2026-05-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidycensus)
+library(sf)
+#library(tmap)
+library(tmaptools)
+library(DT)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(DT)            # for visualizing data tables 
+library(janitor)       # for automatically renaming variables
+library(ggmap)         # for mapping points on maps
+library(RColorBrewer)  # for color palettes
+library(sf)            # for working with spatial data
+library(leaflet)       # for highly customizable mapping
+library(ggthemes)      # for more themes (including theme_map())
+library(gplots)        # for col2hex() function
+library(socviz)        # for the US county map
+library(usmap)         # for plot_usmap
+library(usdata)       # for abbr2state function
+library(choroplethr)   # another option to make choropleths
+library(choroplethrMaps)
+library(maps)
+library(rvest)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+#imports Data
+mass_solar_messy <- read_csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+    col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
+        `Total Cost with Design Fees` = col_number(), 
+        `Total Grant` = col_number()))
+
+#cleans names
+mass_solar_clean<-mass_solar_messy |>
+  janitor::clean_names()|>
+   mutate(year=year(date_in_service), month=month(date_in_service),weekday=wday(date_in_service), day=day(date_in_service))
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+all_mass_year<-mass_solar_clean|>
+  count(year)|>
+ mutate(num_instal=n)|>
+  select(-"n")|>
+  mutate(num_instal_total=cumsum(num_instal))
+
+
+  
+ggplot(all_mass_year, aes(x=year))+
+  geom_col(aes(y=num_instal))+
+  geom_line(aes(y=num_instal_total))+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("All Solar Registered Instalations in Massachusets ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+```
+```{r}
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year, facility_type)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)
+
+all_mass_year_mw<-mass_solar_clean|>
+  group_by(year)|>
+summarise(total_mw=sum(capacity_dc_k_w/1000))|>
+ mutate(mw_cum=(cumsum(total_mw)))
+
+
+all_mass_year_type_mw<-all_mass_year_type|>
+  full_join(all_mass_year_mw)
+
+all_mass_year_type_mw
+
+ggplot(all_mass_year_type_mw, aes(x=year))+
+  geom_col(aes(y=mw, fill=facility_type))+
+  geom_line(aes(y=mw_cum))+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
+
+ggplot(all_mass_year_type_mw, aes(x=year))+
+  geom_col(aes(y=mw))+
+  geom_line(aes(y=mw_cum))+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year")
+
+```
+
+
+```{r, echo=FALSE}
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year)|>
+  count(facility_type)|>
+ arrange(desc(n))|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+  
+ggplot(all_mass_year_type, aes(x=year, y=num_instal, fill=facility_type))+
+  geom_col()+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("Number of Registered Solar Instalations in Massachusets ")+
+labs(y="Number of Instalations", x="Year", fill="Facility Type")
+
+```
+
+
+```{r}
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year,facility_type)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)|>
+ arrange(desc(mw))
+
+  
+ggplot(all_mass_year_type, aes(x=year, y=mw, fill=facility_type))+
+  geom_col()+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
+```
+
+```{r}
+all_mass_year_mw<-mass_solar_clean|>
+  group_by(year)|>
+summarise(total_mw=sum(capacity_dc_k_w/1000))|>
+ mutate(mw=(cumsum(total_mw)))
+  
+ggplot(all_mass_year_mw)+
+  geom_line(aes(x=year, y=mw))+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year")
+
+```
+```{r}
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year, facility_type)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)
+
+all_mass_year_mw<-mass_solar_clean|>
+  group_by(year)|>
+summarise(total_mw=sum(capacity_dc_k_w/1000))|>
+ mutate(mw_cum=(cumsum(total_mw)))
+
+
+all_mass_year_type_mw<-all_mass_year_type|>
+  full_join(all_mass_year_mw)
+
+all_mass_year_type_mw
+
+ggplot(all_mass_year_type_mw, aes(x=year))+
+  geom_col(aes(y=mw, fill=facility_type))+
+  geom_line(aes(y=mw_cum))+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
+
+ggplot(all_mass_year_type_mw, aes(x=year))+
+  geom_col(aes(y=mw))+
+  geom_line(aes(y=mw_cum))+
+  ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
+labs(y="Total Capacity DC (MW)", x="Year")
+
+```
+```{r}
+
+all_mass<- mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+all_mass_year<-all_mass|>
+  count(year)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_all<-all_mass|>
+  group_by(year)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+all_grant_year<-all_mass_year|>
+  left_join(grants_all)
+  
+ggplot(all_grant_year, aes(x=year))+
+  geom_col(aes(y=num_instal))+
+  geom_col(aes(y=count), fill="green")+
+  ggtitle("all single family solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
+
+
+all_mass_month<-all_mass|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+
+
+all_mass_month1<-all_mass_month|>
+  count(year_month)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_all<-all_mass_month|>
+  group_by(year_month)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+all_grant_month1<-all_mass_month1|>
+  left_join(grants_all)
+
+  
+library (plotly)
+all<-ggplot(all_grant_month1, aes(x=year_month))+
+  geom_col(aes(y=num_instal))+
+  geom_col(aes(y=count), fill="green")+
+  ggtitle("all single family solar instalations over time, with grant recieved ")+
+labs(y="Number of Instalations", x="month", fill="Number covered by grants")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggplotly(all)
+
+```
+```{r}
+all_mass<- mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+all_mass_month<-all_mass|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+
+
+all_mass_month1<-all_mass_month|>
+  count(year_month)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+
+all_mass_month2<-all_mass_month1|>
+  mutate(Solar_insentive_type = case_when(
+   between(year_month, "2010-01", "2014-04")~"SREC-1", 
+   between(year_month, "2014-05", "2018-11")~"SREC-2",
+    between(year_month, "2018-12", "2020-06")~"SMART 1.0",
+      between(year_month, "2020-07", "2025-08")~"SMART 2.0",
+    between(year_month, "2025-09", "2026-09")~"SMART 3.0"))
+  
+  
+  
+library (plotly)
+all<-ggplot(all_mass_month2, aes(x=year_month))+
+  geom_col(aes(y=num_instal, fill= Solar_insentive_type))+
+  ggtitle("all single family solar instalations over time, with insentive period ")+
+labs(y="Number of Instalations", x="month", fill="Number covered by grants")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggplotly(all)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
