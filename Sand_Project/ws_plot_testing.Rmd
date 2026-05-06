@@ -1,0 +1,287 @@
+---
+title: "Weather Data Joins"
+author: "Joe Leedy"
+date: "2026-04-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(janitor)
+library(ggplot2)
+library(xts)
+library(dygraphs)
+library(readxl)
+library(stringr)
+library(tidygeocoder)
+library(httr2)
+```
+
+```{r, cache=TRUE, include=FALSE}
+#plym_weather <- read_csv("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand Project/plymouth_weather.csv")
+
+
+plym_weather <- read_csv("plymouth_weather.csv")
+
+```
+
+```{r}
+plym_weather_trim <- plym_weather|>
+  janitor::clean_names() |>
+  select(date, hourly_wind_gust_speed, hourly_wind_speed)
+```
+
+```{r}
+ggplot(filter(plym_weather_trim, month(date) == 4), aes(x = date)) +
+  geom_point(aes(y = hourly_wind_speed), size = .1)+
+  geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
+  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'red', shape = 3)+
+  theme_classic()+
+  labs(x = "Date",
+       y = "Wind Speed (MPH)")
+```
+
+```{r}
+plym_weather_xts <- xts(
+  plym_weather_trim %>% select(-date),
+  order.by = plym_weather_trim$date
+)
+
+dygraph(plym_weather_xts,main="August Wind Speed" ) |> 
+  dyRangeSelector() |>
+  dyOptions(drawPoints = TRUE, 
+            pointSize = 2,
+            strokeWidth=1,
+            colors = RColorBrewer::brewer.pal(4, "Set1")) #|>
+  #dyLegend(width = 1200)
+
+```
+
+# trying to read and clean excel file
+
+```{r, cache=TRUE}
+#mine_locs <- read_excel("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand Project/mine_locs_2024.xlsx")
+
+mine_locs <- read_excel("mine_locs_2024.xlsx")
+
+
+mine_locs <- mine_locs |>
+  mutate(
+    volume_norm = case_when(
+      is.na(volume) ~ 0.5,
+      TRUE ~ (volume - min(volume, na.rm = TRUE)) /
+             (max(volume, na.rm = TRUE) - min(volume, na.rm = TRUE))
+    )
+  )
+
+clean_address <- function(x) {
+  x |>
+    # Remove map/lot/parcel references (various formats)
+    str_remove_all("\\bMap\\s+[\\w-]+(?:\\s+Lot\\s+[\\w,+\\s-]+)?") |>
+    str_remove_all("\\bLot\\s+[\\w,+\\s-]+") |>
+
+    # Remove parenthetical annotations: (Permit 2019), (Solar/Mining), etc.
+    str_remove_all("\\([^)]*\\)") |>
+
+    # Remove slash-separated tags that aren't part of the address
+    # e.g. "/Solar Circle" is actually a street name — keep; "/Cranebrook Site" — drop
+    # Strategy: only drop if the slash-term contains no digits and is all caps-like
+    str_remove_all("(?<=/)[A-Z][A-Za-z]+(?:\\s[A-Za-z]+)*(?=\\s|$)") |>
+
+    # Remove trailing asterisks and "**" markers
+    str_remove_all("\\*+") |>
+
+    # Remove "ZBA N Permits"-style notes
+    str_remove_all("\\bZBA\\b.*") |>
+
+    # Normalize street abbreviations
+    str_replace_all("\\bRd\\.?\\b", "Road") |>
+    str_replace_all("\\bSt\\.?\\b", "Street") |>
+    str_replace_all("\\bAve\\.?\\b", "Avenue") |>
+    str_replace_all("\\bBlvd\\.?\\b", "Boulevard") |>
+    str_replace_all("\\bDr\\.?\\b", "Drive") |>
+
+    # Normalize "a/k/a" aliases — keep only the first name
+    str_remove_all("\\s+a/k/a.*") |>
+
+    # Collapse multiple whitespace
+    str_squish()
+}
+
+is_geocodable <- function(x) {
+  # Must have either a house number OR a clearly identifiable road name
+  # Vague entries: "[combined volume...]", "North Carver*", single "*", etc.
+  !str_detect(x, "^\\[") &          # combined-volume bracket lines
+    !str_detect(x, "^\\*+$") &      # lone asterisk lines
+    str_length(x) > 5               # catch any remaining stubs
+}
+
+default_town  <- "Carver, MA"
+
+mine_locs <- mine_locs |>
+  mutate(
+    address_clean = clean_address(location),
+
+    # Append town context for geocoding
+    address_full  = paste0(address_clean, ", ", default_town),
+
+    # Known multi-town overrides (keyword-based)
+    address_full  = case_when(
+      str_detect(location, "Wareham")  ~ paste0(address_clean, ", Wareham, MA"),
+      str_detect(location, "Halifax")  ~ paste0(address_clean, ", Halifax, MA"),
+      str_detect(location, "Kingston") ~ paste0(address_clean, ", Kingston, MA"),
+      str_detect(location, "Carver")   ~ paste0(address_clean, ", Carver, MA"),
+      str_detect(location, "Bourne")   ~ paste0(address_clean, ", Bourne, MA"),
+      str_detect(location, "Plymouth")   ~ paste0(address_clean, ", Plymouth, MA"),
+      str_detect(location, "Onset")    ~ paste0(address_clean, ", Onset, MA"),
+      TRUE                             ~ address_full
+    ),
+
+    geocodable = is_geocodable(address_clean)
+  )
+
+to_geocode <- mine_locs |> filter(geocodable)
+
+geocoded <- geocode_combine(
+  to_geocode,
+  queries = list(
+    list(method = "census", address = "address_full"),
+    list(method = "osm",    address = "address_full")
+  ),
+  global_params = list(),   # queries already reference the column directly
+  lat    = "lat",
+  long   = "lon"
+)
+```
+#filter data for app plotting
+```{r}
+geocoded_2 <- geocoded|>
+filter(!is.na(lat))
+```
+
+
+# create leaflet plot
+
+```{r}
+leaflet(geocoded) %>%
+  addTiles() %>% 
+  #addProviderTiles(providers$CartoDB.Positron)%>% 
+  addProviderTiles(providers$Esri.WorldImagery)%>% 
+  addCircleMarkers(data = geocoded,
+             lng = ~lon, 
+             lat =  ~lat, 
+             radius = 8,
+             #radius = ~volume_norm * 10,
+             color = "green",
+             fill = "green", 
+             opacity = 1,
+             popup = ~paste("<strong>Owner:</strong> ", owner, "<br>",
+                            "<strong>Size (acres):</strong> ", size, "<br>",
+                            "<strong>Volume Extracted:</strong> ", volume, "<br>"))
+             #popup = ~paste("<strong>Start Date:</strong> ", incident_start_date, "<br>",
+                            #"<strong>Harms Reported:</strong> ", harms_list, "<br>",
+                            #"<strong>Comment:</strong> ", comment2),
+                          #clusterOptions = markerClusterOptions()) %>%
+  
+  #originaldata 
+   #addCircleMarkers(data = data,
+             #lng = ~long, 
+             #lat =  ~lat, 
+             #radius = 5,
+             #color = "yellow") %>%
+  #markerClusterOptions(
+      #spiderfyOnMaxZoom = FALSE,
+      #disableClusteringAtZoom = TRUE) %>%  #I dont think this does anything...
+  #labelOptions(
+    #opacity = 1,
+    #textsize = "30px"
+  #)
+
+
+ggplot(mine_locs, aes(x = size, y=volume))+
+  geom_point()
+
+mine_locs <- mine_locs |>
+  mutate(
+    mining_reason_clean = case_when(
+      # Cranberry + Solar combos first (before individual matches)
+      str_detect(tolower(mining_reason), "cranberry") & 
+        str_detect(tolower(mining_reason), "solar")       ~ "Cranberry/Solar",
+      
+      # Cranberry (any variation)
+      str_detect(tolower(mining_reason), "cranberry|blueberry") ~ "Cranberry",
+      
+      # Solar (any variation)
+      str_detect(tolower(mining_reason), "solar")         ~ "Solar",
+      
+      # Development/Subdivision
+      str_detect(tolower(mining_reason), "subdivision|residential|new construction|development|hide church") ~ "Development",
+      
+      # Commercial/Industrial
+      str_detect(tolower(mining_reason), "commercial|commericia|business|industrial|mining") ~ "Commercial/Industrial",
+      
+      # Golf
+      str_detect(tolower(mining_reason), "golf")          ~ "Golf",
+      
+      # Agriculture (non-cranberry)
+      str_detect(tolower(mining_reason), "agriculture|reconfigure bogs") ~ "Agriculture",
+      
+      # Passthrough for NA and anything unmatched
+      is.na(mining_reason)                                ~ NA_character_,
+      TRUE                                                ~ mining_reason
+    )
+  )
+
+# Check consolidation results
+table(mine_locs$mining_reason_clean, useNA = "always")
+
+ggplot(mine_locs, aes(x = fct_infreq(mining_reason_clean)))+
+  geom_bar(fill = "dodgerblue3", color = "dodgerblue3")
+
+```
+
+# trying to pull up to date ws/wd data
+```{r}
+get_openmeteo_wind <- function(lat, lon, start_date, end_date, tz = "America/New_York") {
+  
+  resp <- request("https://archive-api.open-meteo.com/v1/archive") |>
+    req_url_query(
+      latitude              = lat,
+      longitude             = lon,
+      start_date            = as.character(start_date),
+      end_date              = as.character(end_date),
+      hourly                = "wind_speed_10m,wind_gusts_10m",
+      wind_speed_unit       = "mph",
+      timezone              = tz
+    ) |>
+    req_perform() |>
+    resp_body_json()
+  
+  data.frame(
+    date                   = as.POSIXct(unlist(resp$hourly$time), format = "%Y-%m-%dT%H:%M", tz = tz),
+    hourly_wind_speed      = unlist(resp$hourly$wind_speed_10m),
+    hourly_wind_gust_speed = unlist(resp$hourly$wind_gusts_10m)
+  )
+}
+
+# Usage
+plym_weather_fresh <- get_openmeteo_wind(
+  lat        = 41.9090,
+  lon        = -70.7279,
+  start_date = "2025-01-01",
+  end_date   = Sys.Date()
+)
+
+ggplot(plym_weather_fresh, aes(x = date)) +
+  geom_point(aes(y = hourly_wind_speed), size = .1)+
+  geom_line(aes(y = hourly_wind_speed),linewidth = .01)+
+  geom_point(aes(y = hourly_wind_gust_speed), size = 0.75, color = 'red', shape = 3)+
+  theme_classic()+
+  labs(x = "Date",
+       y = "Wind Speed (MPH)")
+```
+
