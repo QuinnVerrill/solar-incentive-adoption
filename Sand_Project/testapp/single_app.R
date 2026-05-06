@@ -9,6 +9,7 @@
 
 library(shiny)
 library(shinyWidgets)
+library(thematic)
 
 #filter harms data so plot shows up
 all_harms <- c("airborne_sand", "personal_health", "noise", "safety_concern", "sedimentation", "truck_traffic", "harm_to_wildlife")
@@ -16,72 +17,22 @@ available_harms <- intersect(all_harms, names(data)) # Which columns actually ex
 disabled_harms <- setdiff(all_harms, available_harms) # Disable the ones that don’t exist
 data$comment_date <- as.Date(data$comment_date, origin = "1899-12-30")
 
+# Apply the CSS used by the Shiny app to the ggplot2 plots
+thematic_shiny()
 
 ui <- fluidPage(
   
+  # # Set CSS theme
+  # theme = bs_theme(bootswatch = "darkly",
+  #                  bg = "white",
+  #                  fg = "#86C7ED",
+  #                  success ="#86C7ED"),
+  
+  
   # Title
- # titlePanel("Sand Mines and Incidents in SE Massachussets"),
+ titlePanel("Sand Mines and Incidents in SE Massachussets"),
   
-  div(
-    img(src = "clwc_logo.png", height = "45px", style = "margin-right: 15px;"),
-    style = "
-    color: #1f4e79;
-    background-color: white;
-    padding: 20px;
-    font-size: 28px;
-    font-weight: bold;
-  ",
-    "Sand Mines and Incidents in SE Massachussets"
-  ),
-  
-  tags$head(
-    tags$style(HTML("
-    
-    /* ---- Overall background ---- */
-    body {
-      background-color: #f2f2f2;
-      font-family: 'Arial Black', 'Helvetica', sans-serif;
-    }
-    
-    /* ---- Header styling ---- */
-    .navbar, .titlePanel {
-      background-color: #1f4e79;
-      color: white;
-      padding: 15px;
-      font-weight: bold;
-      font-size: 24px;
-    }
-    
-    /* ---- Sidebar ---- */
-    .well {
-      background-color: #e6e6e6;
-      border-radius: 0px;
-      border: none;
-    }
-    
-    /* ---- Main panel ---- */
-    .panel {
-      border-radius: 0px;
-    }
-    
-    /* ---- Inputs (blocky feel) ---- */
-    .form-control, .selectize-input {
-      border-radius: 0px;
-      border: 2px solid #1f4e79;
-    }
-    
-    /* ---- Checkbox labels ---- */
-    .checkbox label {
-      font-weight: bold;
-    }
-    
-    /* ---- Leaflet map container ---- */
-    #comment_map {
-      border: 3px solid #1f4e79;
-    }
-    
-  "))
-  ),
+ 
 
  
   # Layout
@@ -155,9 +106,9 @@ ui <- fluidPage(
 # ---- Server ----
 server <- function(input, output) {
   
-incident_color <- "cyan"
-sandmine_color <- "#FF8B28"
-aq_color <- "yellow"
+  incident_color <- "red"
+  sandmine_color <- "#FF8B28"
+  aq_color <- "cyan"
   
  data$incident_start_date <- as.Date(data$incident_start_date)
   
@@ -225,7 +176,7 @@ aq_color <- "yellow"
                        lat =  ~lat, 
                        radius = 3,
                        #radius = ~volume_norm * 10,
-                       color = aq_color,
+                       color = sandmine_color,
                        #fill = "#FF8B28", 
                        opacity = 1,
                        popup = ~paste("<strong>Location:</strong> ", location, "<br>",
@@ -234,12 +185,12 @@ aq_color <- "yellow"
                                       "<strong>Volume Extracted:</strong> ", volume, "<br>"),
                        group = "Sand Mines") %>%
   #plot AQ sensor
-    addCircleMarkers(data = AQ_loc,
+      addCircleMarkers(data = AQ_loc,
                      lng = ~Long, 
                      lat =  ~Lat, 
                      radius = 3,
                      #radius = ~volume_norm * 10,
-                     color = sandmine_color,
+                     color = aq_color,
                      #fill = "#FF8B28", 
                      opacity = 1,
                     
@@ -257,8 +208,15 @@ aq_color <- "yellow"
                      #   "<a href='", Link, "' target='_blank'>View results</a>"
                      # ),
                     
-                     group = "Air Quality Sensors")
-    )
+                     group = "Air Quality Sensors") %>%
+      addLegend(
+        position = "bottomright",
+        colors = c(incident_color, sandmine_color, aq_color),
+        labels = c("Incident Reports", "Sand Mines", "Air Quality Sensors"),
+        title = "Legend",
+        opacity = 1
+      )
+  
     
     #These currently break the app "object '.xts_chob' not found"
     # %>%
@@ -267,14 +225,8 @@ aq_color <- "yellow"
     #     options = layersControlOptions(collapsed = FALSE)
     #   ) %>%
     #   
-    #     addLegend(
-    #       position = "bottomright",
-    #       colors = c("#FF8B28", "yellow"),
-    #       labels = c("Sand Mines", "Incident Reports"),
-    #       opacity = 1
-    #     )
-   
- }) 
+ 
+
   
 
     # Update map reactively
@@ -296,13 +248,19 @@ aq_color <- "yellow"
                        popup = ~paste("<strong>Start Date:</strong> ", incident_start_date, "<br>",
                                       "<strong>Harms Reported:</strong> ", harms_list, "<br>",
                                       "<strong>Comment:</strong> ", comment2),
-                       #clusterOptions = markerClusterOptions(),
+                       clusterOptions = markerClusterOptions(maxClusterRadius = 50,
+                                                             disableClusteringAtZoom = 16,
+                                                             spiderfyOnMaxZoom = TRUE,
+                                                             #showCoverageOnHover = TRUE,
+                                                             #zoomToBoundsOnClick = FALSE,
+                                                             spiderfyDistanceMultiplier = 2),
                        group = "Incident Reports"
                        )
 
 })
 
-}
+} #ends the server part of code
+
 
 # ---- Run app ----
 shinyApp(ui = ui, server = server)
