@@ -265,5 +265,81 @@ ggplotly(all)
 
 
 ```
+```{r}
+all_mass<- mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+all_mass_month<-all_mass|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+
+
+all_mass_month1<-all_mass_month|>
+  count(year_month)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+
+all_mass_month2<-all_mass_month1|>
+  mutate(Solar_insentive_type = case_when(
+   between(year_month, "2010-01", "2014-04")~"SREC-1", 
+   between(year_month, "2014-05", "2018-11")~"SREC-2",
+    between(year_month, "2018-12", "2020-06")~"SMART 1.0",
+      between(year_month, "2020-07", "2025-08")~"SMART 2.0",
+    between(year_month, "2025-09", "2026-09")~"SMART 3.0"))|>
+  filter: year
+  
+  
+  
+library (plotly)
+all<-ggplot(all_mass_month2, aes(x=year_month))+
+  geom_col(aes(y=num_instal, fill= Solar_insentive_type))+
+  ggtitle("all single family solar instalations over time, with insentive period ")+
+labs(y="Number of Instalations", x="month", fill="Number covered by grants")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggplotly(all)
+
+
+```
+
+```{r}
+
+all_mass_month<-mass_solar_clean|>
+   filter(year>="2008")|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+ 
+
+all_mass_month1<-all_mass_month|>
+  count(year_month, facility_type)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+
+all_mass_month1<-all_mass_month|>
+  group_by(year_month,facility_type)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)|>
+ arrange(desc(mw))
+
+
+all_mass_month2<-all_mass_month1|>
+  mutate(Solar_insentive_type = case_when(
+   between(year_month, "2010-01", "2014-04")~"SREC-1", 
+   between(year_month, "2014-05", "2018-11")~"SREC-2",
+    between(year_month, "2018-12", "2020-06")~"SMART 1.0",
+      between(year_month, "2020-07", "2025-08")~"SMART 2.0",
+    between(year_month, "2025-09", "2026-09")~"SMART 3.0"))
+  
+  
+  
+library (plotly)
+all<-ggplot(all_mass_month2, aes(x=year_month))+
+  geom_col(aes(y=mw, color= Solar_insentive_type, fill=facility_type ))+
+  ggtitle("Capacity of solar instalations over time, with insentive period ")+
+labs(y="Number of Instalations", x="month", fill="Number covered by grants")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggplotly(all)
+
+```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
