@@ -120,19 +120,68 @@ labs(y="Number of Instalations", x="Year", fill="Facility Type")
 ```
 
 
+
 ```{r}
-all_mass_year_type<-mass_solar_clean|>
+
+
+all_mass_year_com<-mass_solar_clean|>
   group_by(year,facility_type)|>
  summarise(mw=sum(capacity_dc_k_w)/1000)|>
  arrange(desc(mw))
 
   
-ggplot(all_mass_year_type, aes(x=year, y=mw, fill=facility_type))+
+ggplot(all_mass_year_com, aes(x=year, y=mw, fill=facility_type))+
   geom_col()+
  # geom_col(aes(y=count), fill="green")+
   ggtitle("Capacity of All Registered Solar Instalations in Massachusetts before 2025")+
 labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
+
+
 ```
+```{r}
+all_mass_year_type<-mass_solar_clean|>
+  filter(facility_type=="Community Solar")|>
+  group_by(year)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)|>
+ arrange(desc(mw))
+
+  
+ggplot(all_mass_year_type, aes(x=year, y=mw))+
+  geom_col()+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("Capacity of registered Community Solar Instalations Over Time")+
+labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
+```
+
+```{r}
+all_mass_year_com1<-mass_solar_clean|>
+   filter(facility_type=="Community Solar")|>
+  group_by(year)|>
+  count()|>
+ arrange(desc(n))|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+  
+ggplot(all_mass_year_com1, aes(x=year, y=num_instal))+
+  geom_col()+
+ # geom_col(aes(y=count), fill="green")+
+  ggtitle("Number of Registered Community Solar Instalations in Massachusets ")+
+labs(y="Number of Instalations", x="Year", fill="Facility Type")
+```
+```{r}
+mass_com_solar_ave<-mass_solar_clean|>
+  filter(facility_type=="Community Solar")|>
+  group_by(year)|>
+  summarise(mean=mean(capacity_dc_k_w))
+
+ggplot(mass_com_solar_ave, aes(x=year, y=mean))+
+  geom_line()+
+  ggtitle("Average Capacity of Registered Community Solar Instalations in Massachusets ")+
+ labs(y="Capacity of Instalations (MW)", x="Year", )
+
+```
+
 
 ```{r}
 all_mass_year_mw<-mass_solar_clean|>
@@ -269,6 +318,7 @@ ggplotly(all)
 all_mass<- mass_solar_clean|>
   filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
   mutate(has_grant= total_grant>0)|>
+  filter(year<="2008")|>
   arrange(desc(total_grant))
 
 all_mass_month<-all_mass|>
@@ -287,20 +337,89 @@ all_mass_month2<-all_mass_month1|>
    between(year_month, "2014-05", "2018-11")~"SREC-2",
     between(year_month, "2018-12", "2020-06")~"SMART 1.0",
       between(year_month, "2020-07", "2025-08")~"SMART 2.0",
-    between(year_month, "2025-09", "2026-09")~"SMART 3.0"))|>
-  filter: year
+    between(year_month, "2025-09", "2026-09")~"SMART 3.0"))
   
   
   
-library (plotly)
-all<-ggplot(all_mass_month2, aes(x=year_month))+
+#library (plotly)
+#all<-
+  ggplot(all_mass_month2, aes(x=year_month))+
   geom_col(aes(y=num_instal, fill= Solar_insentive_type))+
   ggtitle("all single family solar instalations over time, with insentive period ")+
 labs(y="Number of Instalations", x="month", fill="Number covered by grants")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
-ggplotly(all)
+#ggplotly(all)
 
 
+```
+```{r}
+#from chat GPET
+
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2)
+  )
+
+
+ggplot(ma_srec, aes(x = year)) +
+
+  # Price band (floor → ceiling)
+  geom_ribbon(
+    aes(
+      ymin = auction_net,
+      ymax = acp
+    ),
+    fill = "orange",
+    alpha = 0.4
+  ) +
+
+  # Floor price (actual payout)
+  geom_line(
+    aes(y = auction_net),
+    color = "black",
+    linewidth = 1.2
+  ) +
+
+  geom_point(
+    aes(y = auction_net),
+    color = "black"
+  ) +
+
+  scale_x_continuous(breaks = seq(2010, 2025, 1)) +
+
+  labs(
+    title = "Massachusetts SREC Price Evolution (2010–2025)",
+    subtitle = "Black = clearing price (floor) | Orange band = policy price range (floor to ACP)",
+    x = "Year",
+    y = "SREC Price ($/MWh)"
+  ) +
+
+  theme_minimal()
 ```
 
 ```{r}
