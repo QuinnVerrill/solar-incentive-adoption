@@ -1,25 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
-
-library(shiny)
-library(shinyWidgets)
-library(thematic)
-
-#filter harms data so plot shows up
-all_harms <- c("airborne_sand", "personal_health", "noise", "safety_concern", "sedimentation", "truck_traffic", "harm_to_wildlife")
-available_harms <- intersect(all_harms, names(data)) # Which columns actually exist in your dataset?
-disabled_harms <- setdiff(all_harms, available_harms) # Disable the ones that don’t exist
-data$comment_date <- as.Date(data$comment_date, origin = "1899-12-30")
-
-# Apply the CSS used by the Shiny app to the ggplot2 plots
-thematic_shiny()
-
 ui <- fluidPage(
   
   # # Set CSS theme
@@ -30,11 +8,11 @@ ui <- fluidPage(
   
   
   # Title
- titlePanel("Sand Mines and Incidents in SE Massachussets"),
+  titlePanel("Sand Mines and Incidents in SE Massachussets"),
   
- 
-
- 
+  
+  
+  
   # Layout
   sidebarLayout(
     
@@ -48,7 +26,7 @@ ui <- fluidPage(
         min = min(data$incident_start_date, na.rm = TRUE),
         max = max(data$incident_start_date, na.rm = TRUE)
       ),
-   
+      
       # 2. indiv Resident name dropdown
       selectInput(
         "resident",
@@ -65,7 +43,7 @@ ui <- fluidPage(
         choices = c("airborne_sand", "personal_health", "noise", "safety_concern", "sedimentation", "truck_traffic", "harm_to_wildlife"),
         selected = c("airborne_sand", "personal_health", "noise", "safety_concern", "sedimentation", "truck_traffic", "harm_to_wildlife")  #default: show all
       )
-     
+      
     ), #end of sidebar panel
     
     
@@ -99,18 +77,19 @@ ui <- fluidPage(
       
       # Plot output
       leafletOutput("comment_map", height = 600)    
-      )
+    )
   )
 )
 
-# ---- Server ----
+
+
 server <- function(input, output) {
   
   incident_color <- "red"
   sandmine_color <- "#FF8B28"
   aq_color <- "cyan"
   
- data$incident_start_date <- as.Date(data$incident_start_date)
+  data$incident_start_date <- as.Date(data$incident_start_date)
   
   # Reactive filtering 
   filtered_data <- reactive({
@@ -120,13 +99,10 @@ server <- function(input, output) {
       filter(incident_start_date >= input$date_range[1],
              incident_start_date <= input$date_range[2])
     
-    
-    # Filter by resident
     if (input$resident != "All") {
       df <- df %>% filter(name2 == input$resident)
     }
     
-    # code by selected harms (WIP)
     valid_harms <- intersect(input$harms, names(df))
     
     df <- df %>%
@@ -141,109 +117,72 @@ server <- function(input, output) {
     df
   })
   
-  # total reports
-  output$total_reports <- renderText({
-    df <- filtered_data()
-    nrow(df)
-  })
+  # Summary outputs
+  output$total_reports <- renderText({ nrow(filtered_data()) })
   
-  output$total_mines <- renderText({
-    df <- geocoded_2
-    nrow(df)
-  })
- 
-
-  #recent reports 2
+  output$total_mines <- renderText({ nrow(geocoded_2) })
+  
   output$latest_report <- renderText({
     df <- filtered_data()
     df <- df[!is.na(df$incident_start_date), ]
-    
     if (nrow(df) == 0) return("No reports")
-    
-    #format(max(df$comment_date), "%Y-%m-%d")
     format(max(as.Date(df$incident_start_date), na.rm = TRUE), "%B %d, %Y")
   })
   
-  #leaflet map
+  # Base leaflet map (static layers only) ----
   output$comment_map <- renderLeaflet({
-      leaflet() %>%
-      addTiles() %>% 
-      addProviderTiles(providers$Esri.WorldImagery)%>%
-      
-      #plot sand mine locations
-      addCircleMarkers(data = geocoded_2,
-                       lng = ~lon, 
-                       lat =  ~lat, 
-                       radius = 3,
-                       #radius = ~volume_norm * 10,
-                       color = sandmine_color,
-                       #fill = "#FF8B28", 
-                       opacity = 1,
-                       popup = ~paste("<strong>Location:</strong> ", location, "<br>",
-                                      "<strong>Owner:</strong> ", owner, "<br>",
-                                      "<strong>Size (acres):</strong> ", size, "<br>",
-                                      "<strong>Volume Extracted:</strong> ", volume, "<br>"),
-                       group = "Sand Mines") %>%
-  #plot AQ sensor
-      addCircleMarkers(data = AQ_loc,
-                     lng = ~Long, 
-                     lat =  ~Lat, 
-                     radius = 3,
-                     #radius = ~volume_norm * 10,
-                     color = aq_color,
-                     #fill = "#FF8B28", 
-                     opacity = 1,
-                    
-                      #this is not live.. ? 
-                     # popup = ~paste("<strong>Location of sensor:</strong> ", Location, "<br>",
-                     #                "<strong>Link to Live Air Quality Results:</strong> ", Link
-                     #                #"<a href='", Link, "' target='_blank'>", Link, "</a>"), #this makes the link live
-                     # ),
-                     #
-                     
-                     #this shows all
-                     # popup = ~htmltools::HTML(paste(
-                     #   "<strong>Location of sensor:</strong> ", Location, "<br>",
-                     #   "<strong>Link:</strong> ",
-                     #   "<a href='", Link, "' target='_blank'>View results</a>"
-                     # ),
-                    
-                     group = "Air Quality Sensors") %>%
-      addLegend(
-        position = "bottomright",
-        colors = c(incident_color, sandmine_color, aq_color),
-        labels = c("Incident Reports", "Sand Mines", "Air Quality Sensors"),
-        title = "Legend",
-        opacity = 1
-      )
-  
     
-    #These currently break the app "object '.xts_chob' not found"
-    # %>%
-    #   addLayersControl(
-    #     overlayGroups = c("Sand Mines", "Incident Reports"),
-    #     options = layersControlOptions(collapsed = FALSE)
-    #   ) %>%
-    #   
- 
-
+    m <- leaflet() %>% addTiles()
+    message("Base map OK")
+    
+   # m <- addProviderTiles("Esri.WorldImagery") 
+    
+    m <- tryCatch({
+      m %>% addCircleMarkers(data = geocoded_2,
+                             lng = ~lon, lat = ~lat,
+                             radius = 3,
+                             color = sandmine_color,
+                             opacity = 1,
+                             popup = ~paste("<strong>Location:</strong> ", location, "<br>",
+                                            "<strong>Owner:</strong> ", owner, "<br>",
+                                            "<strong>Size (acres):</strong> ", size, "<br>",
+                                            "<strong>Volume Extracted:</strong> ", volume),
+                             group = "Sand Mines")
+    }, error = function(e) { message("FAILED at Sand Mines: ", e$message); m })
+    message("Sand Mines OK")
+    
+    m <- tryCatch({
+      m %>% addCircleMarkers(data = AQ_loc,
+                             lng = ~Long, lat = ~Lat,
+                             radius = 3,
+                             color = aq_color,
+                             opacity = 1,
+                             group = "Air Quality Sensors")
+    }, error = function(e) { message("FAILED at AQ sensors: ", e$message); m })
+    message("AQ Sensors OK")
+    
+    m <- tryCatch({
+      m %>% addLegend(position = "bottomright",
+                      colors = c(incident_color, sandmine_color, aq_color),
+                      labels = c("Incident Reports", "Sand Mines", "Air Quality Sensors"),
+                      title = "Legend",
+                      opacity = 1)
+    }, error = function(e) { message("FAILED at Legend: ", e$message); m })
+    message("Legend OK")
+    
+    m
+  })
   
-
-    # Update map reactively
-    observe({
-      df <- filtered_data()
-      
-      #plot resident comments
-      leafletProxy("comment_map", data = df) %>%
+  # Reactive layer: incident reports ----
+  observe({
+    df <- filtered_data()
+    
+    leafletProxy("comment_map", data = df) %>%
       clearGroup("Incident Reports") %>%
-      addCircleMarkers(data = df,
-                       lng = ~long2, 
-                       lat =  ~lat2, 
+      addCircleMarkers(lng = ~long2, lat = ~lat2,
                        radius = 8,
-                       #color = incident_color,
                        color = ~ifelse(matches_harm, incident_color, "gray"),
                        fillColor = ~ifelse(matches_harm, incident_color, "gray"),
-                       #fill = "yellow",
                        fillOpacity = 1,
                        popup = ~paste("<strong>Start Date:</strong> ", incident_start_date, "<br>",
                                       "<strong>Harms Reported:</strong> ", harms_list, "<br>",
@@ -251,17 +190,10 @@ server <- function(input, output) {
                        clusterOptions = markerClusterOptions(maxClusterRadius = 50,
                                                              disableClusteringAtZoom = 16,
                                                              spiderfyOnMaxZoom = TRUE,
-                                                             #showCoverageOnHover = TRUE,
-                                                             #zoomToBoundsOnClick = FALSE,
                                                              spiderfyDistanceMultiplier = 2),
-                       group = "Incident Reports"
-                       )
+                       group = "Incident Reports")
+  })
+  
+} # end server
 
-})
-
-} #ends the server part of code
-
-
-# ---- Run app ----
 shinyApp(ui = ui, server = server)
-
