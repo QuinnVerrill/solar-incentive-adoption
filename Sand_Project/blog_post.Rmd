@@ -1,0 +1,143 @@
+---
+title: "Data Science Final Project"
+author: "Joe Leedy & Anna Holbook"
+date: "2026-05-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We worked to understand  the consequences of sand extraction in SE mass, which includes environmental destruction and the possibilities for risk to human health due to airborne sand. Then we created a visualization tool for community partners to map resident sourced incidents of harm from sand mining.   Our role in this project was working in solidarity with community organizers who are based in place. We call this solidarity science, a powerful positionality to be led by justice and understanding of context as scientists and engineers. 
+
+This year, one of the members of this data science team has been involved in the design justice studio track, Just energy working with community partners in SE Massachusetts. This mapping project developed out of that relationship. 
+
+### What is going on in SE Massachusetts?
+In Southeastern Massachusetts, they have been growing cranberries for generations. Building a new cranberry bog involves cutting down the forest, leveling the ground, and digging an irrigation pond to flood the bog and harvest the cranberries. As the profitability of cranberries decrease, the industry found a new way to make profits. This is the shadow industry – sand extraction. 
+
+One example, at 59 federal road is an 85 acre parcel of land, where Makepeace AD has permits for development of the site for “cranberry agriculture”, In 2017, sand removal operations began on this site with the promise of cranberry bogs. The forest was cut down, the land was leveled, and the sand was sold for profit.  but no cranberry bogs have yet been made, with the proposed end date already 3 years in the past. This extraction is made possible by a system that fails to hold companies accountable for the impacts they cause. 
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/clwc.png")
+```
+
+And of course, extraction from the land creates not only ecological damage, but social as well. Linda is a resident, living in a low income senior community right next to the 59 Federal rRad mine. When she moved in, this site was covered by pine barrens forest. Now, the air around Linda’s home is filled with construction noise and sand dust, and she has concerns about water contamination to the sole source aquifer which supplies her well water. 
+
+### Why a mapping tool?
+The Community Land and Water Coalition (CLWC) is a non-profit organization whose mission is to “steward the land and water of southeastern Massachusetts, we are losing them fast”. In practice, they are working to hold landowners, corporations, and public commissions accountable for the environmental and human health impacts of earth extraction.  They work in a myriad of pathways, including legislative change, lawsuits, and community information so residents can take control of their own health. 
+
+CLWC has decided to develop a community health impact assessment, modeled after the broader practice health impact assessments, because they suspect there are potential adverse health impacts of earth removal operations. 
+
+One part of this work involves the creation of resident impact form form, as a place for residents to document the harms of sand mining, This has two purposes. First, to make the data easy to interpret and find for advocacy efforts, such as advocating for further study and the mitigation of environmental and human health harm of sand mining. Second to make it available to publicly, for organizing/democracy of information.
+
+A foundation of the health impact assessment is the democratization of knowledge of where, when, and what the impacts of sand mining could be for an individual or a community
+
+We see this work as aligning with just transition principles (assumption test!)
+
+
+## The Data
+Our primary data set is the complaint form created by CLWC. The Google Form they have created asks 40 questions about complaint source, nature, timing, and optional personal identification fields (location, name, etc.). These data are nominally tidy- the main challenge we faced was being able to design a robust data acquisition strategy in order to account for a dynamic dataset. Since these data live in a Google Sheet, the `googlesheets4` package was an excellent tool for this task. However, the column names for each question are generally very long and not conducive to data visualizations. In order to accommodate this, we created a parallel sheet with internal references to the “live” form collection sheet. On this parallel sheet, we replaced column names with more readable and reasonable titles such that once the data is read it will have proper column titling without any additional R code or issues.
+
+There are three important pieces of identifying information in the community comments that we wanted to be very sure to get resident consent about before publishing.  These data points are the resident name, the address, and the comment itself. There are separate questions in the survey asking for consent to publish the name, exact location, and comment on the dashboard. In order to randomize, we created additional columns, using case_when and if_else. If the resident consented to their name being used, the name was copied, and if not, it is changed to anonymous. If there is comment consent, it stays, otherwise it is changed to “NA” . If consent was not given for the exact location to be used, we randomized the location by adding a randomly generated number between 0 and 0.0072 to the latitude of the location, this corresponds with an upper limit of  ½ mile. Thus, the random addresses would be within ½ mile of the original location, allowing some anonymity, but still correlating the harms to place, the reason for the map. 
+
+
+One problem we encountered with this workflow is that internal references in Google Sheets do not automatically update. If a new response is submitted, even if the correct row in the spreadsheet has the self-referencing formula, it needs to be manually refreshed in order to reflect the updated content. We hope that a future version of this application will take the names from our “parallel” sheet and the data from the auto-updating Google Forms sheet. 
+
+These data can help to identify concentrations of complaints, the distribution of the nature of complaints, and correlate complaint timing with either weather or particulate matter data. While not all of these explorations were attempted during this project, examples of potential visuals were able to be generated. The primary issue with the dataset at present is an insufficient number of responses. Currently, the form has only 9 responses, which helps to populate visualizations for a future pipeline, but does not represent a statistically significant population for drawing meaningful conclusions. As a result, most of our work in this space is identifying useful frameworks for future visualizations and interactive artifacts that advance CLWC’s primary goals as an organization. 
+
+### Mine List Data
+In order to make meaningful visualizations and conduct analyses, our team identified several additional sources of data to join and cross-reference. The first, and most relevant to our current efforts, was a database of known mine locations in SE Massachusetts created by CLWC. With roughly 120 entries across 25+ variables, the dataset presented a suitable number of responses for possible joins and visualizations. However, the actual data entry was very human, and as a result, extremely untidy. Inconsistent entries into columns, missing data, and ambiguous wording left data tidying a more complicated task than anticipated.
+
+We expected these data to be helpful for several reasons. First and foremost was the ability to geocode mine locations for our Shiny app. Being able to see the proximity of complaints to mine locations is an important basic exploratory data analysis tool for CLWC. Due to this, our primary focus was on geocoding the mine locations and verifying their accuracy, as well as identifying any further useful identifiers from the sheet. Some key variables included volume mined, acreage, stated purpose for mining, and site owners. These variables are helpful for CLWC to identify the characterize the nature of the mining sites and, at a glance, see what kind of activity occurs at each site. With more than 100 sites, these quick identifying features are key in an EDA tool, both for our community partner and for individual community members. 
+
+Some of the key data cleaning for these data began in Excel, with the removal of any ambiguous entries and coding any entries that contained “n/a” or “unknown” as a blank cell, and in so doing removing uncertainty from the data as well as ensuring missing data was properly flagged by R as N/A. Due to the nominally static nature of these data, we did not implement any features for robustness in this process. We anticipate sharing a more consistent style guide with our community partners to ensure any new data (which will happen at a slow pace) is entered with a consistent style guide.
+
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/old_mine_locs.png")
+```
+
+
+The previous figure demonstrates the excel wrangling conducted by our team. Note the modified column names as well as the removal of ambiguous entires in columns.
+
+The final challenge with these data was correctly geocoding addresses. A major issue with sandmine locations is the lack of an exact address. Unlike a home or business, sand mines typically exist on private roads created relatively recently in forests. As such, typical geocoding strategies using US Census data do not work particularly well. We attempted some manual corrections of addresses given our knowledge of the area, but found that many mines were un-geocodable within a reasonable level of certainty. Using a combination of regular expressions and `tidygeocoder`, we were able to geocode 40 of the 100+ sand mines documented by CLWC within a reasonable margin of locational error. In order to improve upon this, direct coordinates provided by CLWC from their drone flyovers and internal investigations would be critical to geocode off-Census properties. 
+
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/mine_locs.png")
+```
+
+### NOAA
+
+An additional dataset we were curious to find was weather data from the Carver area. In the US, it is typical that local weather data can be sourced from airports. The nearest airport to Carver, MA is Plymouth’s regional airfield, which has a NOAA base. We initially struggled to pull data- using web searching, we found NOAA websites claiming to offer data, but most data sources ended in mid-2025 or earlier, which was before the majority of the complaints noted on the form. We were particularly interested in wind speed and wind direction, as well as any wind gusts, as fine particulate pollution (either PM10 or PM4) related to sand mining is almost always correlated with meteorological transport phenomena. 
+
+Although direct NOAA access was unsuccessful, we identified an API that worked with R that allowed for up-to-date retrieval of NOAA data. In particular, `open-meteo` was able to pull up-to-date weather data, which together with the R-native `sys.date()` command is a scalable, robust implementation that can update in time as this app is used. We were able to attain hourly wind speed, direction, and burst magnitudes, and flag complaints in a time series with wind speeds to get a general sense of correlation with higher wind speeds. The resulting data were very tidy and clean, requiring no further modification on our part. With these data, we were able to generate a visualization that captured time series wind speed data and added flags for noted complaints. With this, it is possible to get a basic sense of how complaints are correlated with wind speed and wind bursts, something that can be helpful for separating wind-blown dust events from mechanically generated dust events.
+
+
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/wind_incident.png")
+```
+
+## Leaflet App
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/dashboard.png")
+```
+
+When you click on map points, it provides more information, and there is also summary data for the app.  This interactive dashboard will one day be available connected to the CLWC website. We connected the four data sets into the app. There is potential for more connection between the data points in this dataset as future work.
+
+This tool was built using the shiny app package in R, a format for user interactive apps. Like most app development, there is a front end and a back end. In shiny, the front end is developed under “fluidpage()”, which is all the code for creating blocks and elements that you see in the app, and the back end, called “server()” determines the response for any interactive elements. 
+For our shiny app, the features we implemented include dropdown menus, interactive checkboxes, and a leaflet plot. We also included summary statistics. 
+
+When you click on map points, it provides more information, and there is also summary data for the app.  This interactive dashboard will one day be available connected to the CLWC website. We connected the four data sets into the app. There is potential for more connection between the datapoints in this dataset as future work. 
+
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/incident popup ex.png")
+```
+
+This tool was built using the shiny app package in R, a format for user interactive apps. Like most app development, there is a front end and a back end. In shiny, the front end is developed under “fluidpage()”, which is all the code for creating blocks and elements that you see in the app, and the back end, called “server()” determines the response for any interactive elements. 
+For our shiny app, the features we implemented include dropdown menus, interactive checkboxes, and a leaflet plot. We also included summary statistics. 
+
+
+The main function was created using leaflet plot. Leaflet is automatically interactive, and we utilized the popup function. When you click on any community comment, you see the date the comment was submitted, the harm, and the comment itself, since we believe these are the most informative pieces of information available, and what we had discussed with our community partner. Since there is more information attached to each data entry, a future feature could be to make customizable what popups would be visible to any user. 
+
+One challenge encountered with the harm plot was the mapping due to some of the locations reported being in the exact same spot, as residents report multiple harms in the same location over a series of time. We used the spideryify package, including markerClusterOptions, to display groupings of data points with count, and as you click on them, it spirals the datapoints.  This makes the tool more robust as it scales to map more data points. 
+
+### Filter features
+```{r, echo = FALSE}
+knitr::include_graphics("C:/Users/jleedy/Documents/Coursework/SP26/Data Science/solar-incentive-adoption/Sand_Project/Documentation/filtering_tab.png")
+```
+
+
+These filters are included to allow the community partner, or residents to sort based upon date, the inputting resident, or the harms included in the incident. This can be useful when searching for a specific timeframe for a case. Sorting for specific harms could be important for proving a case related to a specific harm. For example, proving environmental impact, you could sort for the harm “sand on wetlands”, for a case about dangerous roads, sort based upon “truck traffic”. 
+
+We created the filters to make this tool able to parse a larger dataset. We are expecting it to grow to some 100+ points, as we are expecting the dataset to grow. In fact, over the weekend, after clouds of dust swarmed the air visibly in a neighborhood in Carver,  we received 3 additional entries into the dataset, which indicates that this dataset will continue to grow. 
+[photo of recent dust event in cranberry village]
+
+To search for harms near a specific location, you would use the mapping feature. A possibility is to implement an address sort feature, but we believe at this time, that would not be particularly helpful. There is a question in the community comment form about the location of the mine where the comment for the sand harm is coming from, (the mine the dust is blowing from, the trucks are coming from). In theory, that location could be used to join the comment data with the location of the mine data, if the two addresses were standardized. The addresses of the sand mines are not very standardized, nor is the knowledge of those addresses widespread. Thus, we chose to develop the features we believed would be the most useful. 
+
+
+## Future Work
+This mapping tool can be made public, adapted through codesigns and user feedback, increased customization features, and cross reference with more datasets that would help illuminate the human and environmental health impacts of sand mining.  First, This mapping tool will be handed off to the Just Energy Design Justice Studio team, with thorough documentation. They will have the option to assess their capability and capacity to continue the work, and support the public implementation of the mapping tool for the community land and water coalition. 
+
+
+Next, after the initial implementation, ideally there would be a set of codesigns with the users to determine what features are working for users, and what they would like to see in future features. As the dataset scales, we may realize the mapping needs to change to represent larger quantities of data. This mapping was partially based upon a similar project that was a response map to the deepwater horizon oil spill in 2014, see documentation for that project here (reference here). In that project, they collected ~1400 data pieces and represented them in a similar public facing map.  Additionally, This tool could be expanded to integrate the results of a citizen science initiative. 
+
+
+This is another project the Just Energy DJS team has been working on together with CLWC. This is a citizen science initiative to collect sand samples on their properties and process them in the Olin Materials science lab for the presence of fine particle respirable crystalline silica dust, which can cause silicosis if consistently exposed.
+
+
+## Works Cited
+
+1. [sandwars.com](sandwars.com)
+2. [communitylandandwater.com](communitylandandwater.com)
+3. [https://app.quant-aq.com/map](https://app.quant-aq.com/map)
+4. [https://open-meteo.com/en/docs](https://open-meteo.com/en/docs)
+5. [https://labucketbrigade.org/wp-content/uploads/2020/08/Oil-Spill-Crisis-Map-Initial-Analysis-and-Review-2010.pdf](https://labucketbrigade.org/wp-content/uploads/2020/08/Oil-Spill-Crisis-Map-Initial-Analysis-and-Review-2010.pdf)
+
+
+## Appendix
+
+All code used to generate these figures, as well as the interactive app, can be found on our Github repository at the following address:
+
+[https://github.com/j-leedy/solar-incentive-adoption/tree/main](https://github.com/j-leedy/solar-incentive-adoption/tree/main)
+
+In this shared repository, our content is located in the `sand_project` subfolder. Our work can be navigated via the `readme.md` file located within our subfolder.

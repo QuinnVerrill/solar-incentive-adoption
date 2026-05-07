@@ -28,7 +28,7 @@ library(plotly)
 #plotting libraries
 library(leaflet)
 library(leaflet.extras2)
-
+library(googlesheets4)
 ```
 
 
@@ -196,8 +196,7 @@ labelOptions(
   textOnly = FALSE,
   style = NULL,
   zoomAnimation = NULL,
-  sticky = TRUE,
-  ...
+  sticky = TRUE
 )
 
 markerOptions(
