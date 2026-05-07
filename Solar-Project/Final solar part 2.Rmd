@@ -8,14 +8,21 @@ date: "2026-04-10"
 library(tidyverse)
 library(tidycensus)
 library(sf)
+#library(tmap)
+library(tmaptools)
 library(DT)
 library(ggplot2)
+library(tidyverse)
 library(janitor)
 library(GGally)
+library(DT)            # for visualizing data tables 
+library(janitor)       # for automatically renaming variables
+library(ggmap)         # for mapping points on maps
 library(RColorBrewer)  # for color palettes
 library(sf)            # for working with spatial data
 library(leaflet)       # for highly customizable mapping
 library(ggthemes)      # for more themes (including theme_map())
+library(gplots)        # for col2hex() function
 library(socviz)        # for the US county map
 library(usmap)         # for plot_usmap
 library(usdata)       # for abbr2state function
@@ -30,13 +37,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #imports Data
-mass_solar_messy <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+mass_solar_messy <- read_csv("C:/Users/pschnell/Downloads/Data Science sust/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
     col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
         `Total Cost with Design Fees` = col_number(), 
         `Total Grant` = col_number()))
 
 #cleans names
-
 mass_solar_clean<-mass_solar_messy |>
   janitor::clean_names()|>
    mutate(year=year(date_in_service), month=month(date_in_service),weekday=wday(date_in_service), day=day(date_in_service))
@@ -45,7 +51,6 @@ mass_solar_clean<-mass_solar_messy |>
 ```
 
 Income data from WIki
-
 ```{r}
 #income data
 url<-"https://en.wikipedia.org/wiki/List_of_Massachusetts_locations_by_per_capita_income"
@@ -79,7 +84,6 @@ median_income_town <- webpage |>
 ```
 
 citys/towns
-
 ```{r}
 #income data
 url<-"https://en.wikipedia.org/wiki/List_of_municipalities_in_Massachusetts"
@@ -128,6 +132,822 @@ mass_city_1<-mass_solar_clean|>
   
 ```
 
+```{r}
+# install.packages(c("ggplot2", "dplyr"))
+library(ggplot2)
+library(dplyr)
+
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar",
+    "SREC I",
+    "SREC II",
+    "Mass Solar Loan",
+    "SMART (Mass SMART)",
+    "EmPower Grants"
+  ),
+  
+  start = as.Date(c(
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+  
+  end = as.Date(c(
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+# Order programs top-to-bottom
+solar_programs$program <- factor(
+  solar_programs$program,
+  levels = rev(solar_programs$program)
+)
+
+# Plot
+ggplot(solar_programs) +
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 8,
+    color = "steelblue"
+  ) +
+  labs(
+    title = "Massachusetts & Federal Solar Incentive Timeline",
+    x = "Year",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(face = "bold")
+  )
+```
+```{r}
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar",
+    "SREC I",
+    "SREC II",
+    "Mass Solar Loan",
+    "SMART (Mass SMART)",
+    "EmPower Grants"
+  ),
+  
+  start = as.Date(c(
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+  
+  end = as.Date(c(
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+# Order programs top-to-bottom
+solar_programs$program <- factor(
+  solar_programs$program,
+  levels = rev(solar_programs$program)
+)
+
+# Plot
+ggplot(solar_programs) +
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 8,
+    color = "blue"
+  ) +
+  labs(
+    title = "Massachusetts & Federal Solar Incentive Timeline",
+    x = "Year",
+    y = NULL
+  ) +
+  theme_clean(base_size = 13) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(face = "bold")
+  )
+```
+```{r}
+# install.packages(c("ggplot2", "dplyr", "scales"))
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (Carter Era)",
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar",
+    "SREC I",
+    "SREC II",
+    "Mass Solar Loan",
+    "SMART (Mass SMART)",
+    "EmPower Grants"
+  ),
+
+  start = as.Date(c(
+    "1978-01-01",
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+
+  end = as.Date(c(
+    "1985-12-31",
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+# Labels and midpoints
+solar_programs <- solar_programs %>%
+  mutate(
+    label = paste0(
+      format(start, "%Y"),
+      "–",
+      format(end, "%Y")
+    ),
+    mid = start + (end - start) / 2
+  )
+
+# Reverse order for plotting
+solar_programs$program <- factor(
+  solar_programs$program,
+  levels = rev(solar_programs$program)
+)
+
+# Plot
+ggplot(solar_programs) +
+
+  # Narrow bars
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 4,
+    color = "steelblue"
+  ) +
+
+  # Labels inside bars
+  geom_text(
+    aes(
+      x = mid,
+      y = program,
+      label = label
+    ),
+    color = "white",
+    fontface = "bold",
+    size = 3.3
+  ) +
+
+  # Yearly x-axis labels and grid
+  scale_x_date(
+    date_breaks = "2 year",
+    date_minor_breaks = "2 year",
+    labels = label_date("%Y"),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+
+  labs(
+    title = "Massachusetts & Federal Solar Incentive Timeline",
+    subtitle = "Major Massachusetts and Federal Solar Incentive Programs",
+    x = "Year",
+    y = NULL
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    panel.grid.major.x = element_line(color = "grey75", linewidth = 0.45),
+    panel.grid.minor.x = element_line(color = "grey90", linewidth = 0.25),
+    panel.grid.major.y = element_line(color = "grey92"),
+    panel.grid.minor.y = element_blank(),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      size = 8
+    ),
+
+    axis.text.y = element_text(face = "bold"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11)
+  )
+```
+```{r}
+# install.packages(c("ggplot2", "dplyr", "scales"))
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (“Energy Tax Act)",
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar",
+    "SREC I",
+    "SREC II",
+    "Mass Solar Loan",
+    "SMART (Mass SMART)",
+    "EmPower Grants"
+  ),
+
+  start = as.Date(c(
+    "1978-01-01",
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+
+  end = as.Date(c(
+    "1985-12-31",
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+# Reverse order for plotting
+solar_programs$program <- factor(
+  solar_programs$program,
+  levels = rev(solar_programs$program)
+)
+
+# Every-other-year breaks starting at 1978
+year_breaks <- seq(
+  as.Date("1978-01-01"),
+  as.Date("2034-01-01"),
+  by = "2 years"
+)
+
+# Plot
+ggplot(solar_programs) +
+
+  # Narrow timeline bars
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 4,
+    color = "steelblue"
+  ) +
+
+  # X-axis formatting
+  scale_x_date(
+    breaks = year_breaks,
+    date_minor_breaks = "1 year",
+    labels = label_date("%Y"),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+
+  labs(
+    title = "Massachusetts & Federal Solar Incentive Timeline",
+    x = "Year",
+    y = NULL
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    panel.grid.major.x = element_line(
+      color = "grey75",
+      linewidth = 0.45
+    ),
+
+    panel.grid.minor.x = element_line(
+      color = "grey90",
+      linewidth = 0.25
+    ),
+
+    panel.grid.major.y = element_line(color = "grey92"),
+    panel.grid.minor.y = element_blank(),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      size = 8
+    ),
+
+    axis.text.y = element_text(
+      face = "bold",
+      size = 10
+    ),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11)
+  )
+```
+
+```{r}
+# install.packages("ggplot2")
+
+library(ggplot2)
+
+# SMART incentive values
+values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+)
+
+# Create dataframe
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive = values
+)
+
+# Plot
+ggplot(smart_df, aes(x = Block, y = Incentive)) +
+
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.2
+  ) +
+
+  geom_point(
+    color = "darkblue",
+    size = 2.5
+  ) +
+
+  geom_text(
+    aes(label = round(Incentive, 3)),
+    vjust = -0.8,
+    size = 3
+  ) +
+
+  scale_x_continuous(
+    breaks = 1:16
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline by Block",
+    subtitle = "Allocated for Mass Elec National Grid ≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Capacity Block (every 18kw",
+    y = "Incentive Rate ($/kWh)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    panel.grid.minor = element_line(color = "grey92"),
+    panel.grid.major = element_line(color = "grey80"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    axis.text = element_text(size = 10)
+  )
+```
+```{r}
+# install.packages(c("ggplot2", "dplyr"))
+
+library(ggplot2)
+library(dplyr)
+
+# SMART incentive values ($/kWh)
+incentive_values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+)
+
+# Capacity block sizes converted to cumulative MW
+capacity_values <- c(
+  18.004, 18.004, 18.004, 18.004,
+  18.004, 18.004, 18.004, 18.004,
+  18.093, 18.093, 18.093, 18.093,
+  18.093, 18.093, 18.093, 18.093
+)
+
+# Build dataframe
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive = incentive_values,
+  Capacity_MW = cumsum(capacity_values)
+)
+
+# Plot
+ggplot(smart_df, aes(x = Capacity_MW, y = Incentive)) +
+
+  # Line
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.3
+  ) +
+
+  # Points
+  geom_point(
+    color = "darkblue",
+    size = 3
+  ) +
+
+  # Incentive labels
+  geom_text(
+    aes(label = round(Incentive, 3)),
+    vjust = -1,
+    size = 3
+  ) +
+
+  scale_x_continuous(
+    breaks = seq(0, 300, by = 25),
+    minor_breaks = seq(0, 300, by = 12.5)
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline vs Installed Capacity",
+    subtitle = "Massachusetts Electric (National Grid)\n≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Cumulative Capacity Installed (MW)",
+    y = "Incentive Rate ($/kWh)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    panel.grid.major = element_line(
+      color = "grey80",
+      linewidth = 0.5
+    ),
+
+    panel.grid.minor = element_line(
+      color = "grey92",
+      linewidth = 0.3
+    ),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11),
+
+    axis.text = element_text(size = 10)
+  )
+
+```
+
+```{r}
+# install.packages(c("ggplot2", "dplyr"))
+
+library(ggplot2)
+library(dplyr)
+
+# SMART incentive values converted from $/kWh to $/MWh
+# (multiply by 1000)
+incentive_values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+) * 1000
+
+# Capacity block sizes (MW)
+capacity_values <- c(
+  18.004, 18.004, 18.004, 18.004,
+  18.004, 18.004, 18.004, 18.004,
+  18.093, 18.093, 18.093, 18.093,
+  18.093, 18.093, 18.093, 18.093
+)
+
+# Build dataframe
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive_MWh = incentive_values,
+  Capacity_MW = cumsum(capacity_values)
+)
+
+# Plot
+ggplot(smart_df, aes(x = Capacity_MW, y = Incentive_MWh)) +
+
+  # Line
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.3
+  ) +
+
+  # Points
+  geom_point(
+    color = "darkblue",
+    size = 3
+  ) +
+
+  # Labels
+  geom_text(
+    aes(label = round(Incentive_MWh, 1)),
+    vjust = -1,
+    size = 3
+  ) +
+
+  scale_x_continuous(
+    breaks = seq(0, 300, by = 25),
+    minor_breaks = seq(0, 300, by = 12.5)
+  ) +
+
+  scale_y_continuous(
+    breaks = seq(150, 325, by = 25),
+    minor_breaks = seq(150, 325, by = 12.5)
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline vs Installed Capacity",
+    subtitle = "Massachusetts Electric (National Grid)n/ ≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Cumulative Capacity Installed (MW)",
+    y = "Incentive Rate ($/MWh)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    panel.grid.major = element_line(
+      color = "grey80",
+      linewidth = 0.5
+    ),
+
+    panel.grid.minor = element_line(
+      color = "grey92",
+      linewidth = 0.3
+    ),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11),
+
+    axis.text = element_text(size = 10)
+  )
+```
+```{r}
+# install.packages(c("ggplot2", "dplyr"))
+
+library(ggplot2)
+library(dplyr)
+
+# Incentive values converted to $/MWh
+incentive_values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+) * 1000
+
+# Capacity (MW)
+capacity_values <- c(
+  18.004, 18.004, 18.004, 18.004,
+  18.004, 18.004, 18.004, 18.004,
+  18.093, 18.093, 18.093, 18.093,
+  18.093, 18.093, 18.093, 18.093
+)
+
+# Data frame
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive_MWh = incentive_values,
+  Capacity_MW = capacity_values
+)
+
+# Colors
+line_blue <- "lightblue"
+point_blue <- "darkblue"
+grey_text <- "black"
+
+ggplot(smart_df, aes(x = Block, y = Incentive_MWh)) +
+
+  # Line
+  geom_line(
+    color = line_blue,
+    linewidth = 1.3
+  ) +
+
+  # Points
+  geom_point(
+    color = point_blue,
+    size = 3
+  ) +
+
+  # Labels shifted right + down
+  geom_text(
+    aes(label = round(Incentive_MWh, 1)),
+    nudge_x = 0.25,
+    nudge_y = -5,
+    size = 3,
+    color = grey_text
+  ) +
+
+  scale_x_continuous(
+    breaks = 1:16
+  ) +
+
+  scale_y_continuous(
+    breaks = seq(150, 325, by = 25),
+    minor_breaks = seq(150, 325, by = 12.5)
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline by Block",
+    subtitle = "Massachusetts Electric (National Grid)\n≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Block",
+    y = "Incentive Rate ($/MWh)"
+  ) +
+
+  theme_clean(base_size = 13) +
+
+  theme(
+    panel.grid.major = element_line(color = "grey85"),
+    panel.grid.minor = element_line(color = "grey92"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11),
+
+    axis.text = element_text(size = 10)
+  )
+
+```
+
+
+```{r}
+# install.packages(c("ggplot2", "dplyr"))
+
+library(ggplot2)
+library(dplyr)
+
+# SMART incentive values
+incentive_values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+)
+
+# Capacity block sizes (MW)
+capacity_values <- c(
+  18.004, 18.004, 18.004, 18.004,
+  18.004, 18.004, 18.004, 18.004,
+  18.093, 18.093, 18.093, 18.093,
+  18.093, 18.093, 18.093, 18.093
+)
+
+# Create dataframe
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive = incentive_values,
+  Capacity_MW = capacity_values
+)
+
+# Plot
+ggplot(smart_df, aes(x = Block, y = Incentive)) +
+
+  # Line
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.2
+  ) +
+
+  # Points scaled by capacity
+  geom_point(
+    aes(size = Capacity_MW),
+    color = "darkblue",
+    alpha = 0.9
+  ) +
+
+  # Incentive labels
+  geom_text(
+    aes(label = round(Incentive, 3)),
+    vjust = -1.0,
+    size = 3
+  ) +
+
+  # Capacity labels
+  geom_text(
+    aes(label = paste0(Capacity_MW, " MW")),
+    vjust = 1.8,
+    color = "darkred",
+    size = 3
+  ) +
+
+  scale_x_continuous(
+    breaks = 1:16
+  ) +
+
+  scale_size_continuous(
+    range = c(4, 7),
+    name = "Capacity Block Size (MW)"
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline by Capacity Block",
+    subtitle = "Massachusetts Electric (National Grid)\n≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Capacity Block",
+    y = "Incentive Rate ($/kWh)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    panel.grid.minor = element_line(color = "grey92"),
+    panel.grid.major = element_line(color = "grey80"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11),
+
+    axis.text = element_text(size = 10)
+  )
+```
+
+
 ## % Grants
 
 ```{r}
@@ -150,6 +970,8 @@ mass_solar_clean_prec<-mass_solar_clean_prec[-c(1,2,3),]
  
    which(is.na(as.character( mass_solar_clean_prec$grant_prec)))
 
+  
+
 mass_solar_clean_prec
 
 ```
@@ -166,7 +988,7 @@ solar_count_city<-mass_solar_clean|>
   count(facility_type)|>
  arrange(desc(n))
 
-solar_count_num
+solar_count_city
 
 solar_count_num_resid<-solar_count_num|>
   filter(facility_type=="Residential (3 or fewer dwelling units per building)")
@@ -180,7 +1002,6 @@ solar_count_resid4_city<-solar_count_city|>
 
 
 ```
-
 ```{r}
 
 #filters for single family
@@ -209,9 +1030,7 @@ ggplot(solar_resid_prec_grant, aes(x = n, y=mean_prec_grant, label=county))+
 labs(y="Precentage covered with grant", x="Number of Single Residence Solar Permits")+
   geom_text(nudge_y = 0.2)
 ```
-
 Repeats for multi family:
-
 ```{r}
 just_residential4_prec<-mass_solar_clean_prec|>
  filter(facility_type=="Multi-family residential (4 or more dwelling units per building)") 
@@ -233,9 +1052,7 @@ ggplot(solar_resid4_grant, aes(x = n, y=mean_grant_prec, label=county))+
 labs(y="Average presentage covered with grant", x="Number of Multi Residence Solar Permits")+
   geom_text(nudge_y = 0.9)
 ```
-
 Single Familt facets:
-
 ```{r}
 
 just_res4_town<-mass_solar_clean_prec|>
@@ -274,8 +1091,8 @@ labs(y="Average presentage covered with grant", x="Number of Multi Residence Sol
 
 ```
 
-Multi Family Facets
 
+Multi Family Facets
 ```{r}
 
 just_res4_town<-mass_solar_clean_prec|>
@@ -316,6 +1133,7 @@ labs(y="Average presentage covered with grant", x="Number of Multi Residence Sol
 
 Focus on Provincetown:
 
+
 ```{r}
 just_ptown<- mass_solar_clean|>
   filter(city=="Provincetown")|>
@@ -347,7 +1165,6 @@ labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 
 
 ```
-
 ```{r}
 just_ptown<- mass_solar_clean|>
   filter(city=="Provincetown")|>
@@ -378,8 +1195,9 @@ ggplot(ptown_grant_year, aes(x=year))+
 labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 ```
 
--   group by multiple catagories,, and then use count-- make grid of all the graphs
 
+
+- group by multiple catagories,, and then use count-- make grid of all the graphs 
 ```{r}
 all_town<-mass_solar_clean|>
   mutate(has_grant= total_grant>0)|>
@@ -407,7 +1225,6 @@ ggplotly(p)
 
 
 ```
-
 ```{r}
 total_solar<-mass_solar_clean|>
   mutate(has_grant= total_grant>0)|>
@@ -430,7 +1247,7 @@ ggplotly(p)
 
 ```
 
-```{r}
+```{r} 
 mass_solar_clean
 
 total_solar_type<-mass_solar_clean|>
@@ -453,3 +1270,978 @@ labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 ggplotly(p)
 
 ```
+
+- geom text.. xy coordinates make notes of fedral events and things to lable... 
+chatty crap
+
+```{r}
+
+# ================================
+
+# Massachusetts Solar + SREC Analysis
+
+# ================================
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tibble)
+
+# -------------------------------
+
+# 1. SREC price dataset (DOER-based)
+
+# -------------------------------
+
+ma_srec <- tibble(
+year = 2010:2025,
+
+# SREC-I ACP (ceiling)
+
+acp_srec1 = c(
+600, 550, 550, 550,
+523, 496, 472, 448,
+426, 404, 384, 365,
+347, 330, 330, 330
+),
+
+# SREC-II ACP (NA before 2014)
+
+acp_srec2 = c(
+NA, NA, NA, NA,
+375, 375, 350, 350,
+350, 333, 316, 300,
+285, 271, 257, 244
+),
+
+# Auction clearinghouse price (floor before fee)
+
+auction_price = c(
+300, 300, 300, 300,
+300, 300, 300,
+285, 271, 257,
+244, 232, 221,
+210, 199, 189
+),
+
+# Net to seller (after 5% fee)
+
+auction_net = auction_price * 0.95
+)
+
+# -------------------------------
+
+# 2. Prepare installations data
+
+# -------------------------------
+
+installs_yearly <- mass_solar_clean |>
+filter(
+facility_type == "Residential (3 or fewer dwelling units per building)",
+year >= 2010
+) |>
+mutate(year = year(as.Date(date_in_service))) |>
+count(year, name = "num_instal")
+
+# -------------------------------
+
+# 3. Merge datasets
+
+# -------------------------------
+
+plot_data <- installs_yearly |>
+left_join(ma_srec, by = "year")
+
+# -------------------------------
+
+# 4. Scale factor for dual axis
+
+# -------------------------------
+
+scale_factor <- max(plot_data$num_instal, na.rm = TRUE) /
+max(plot_data$auction_net, na.rm = TRUE)
+
+# -------------------------------
+
+# 5. Visualization
+
+# -------------------------------
+
+ggplot(plot_data, aes(x = year)) +
+
+# Installations (bars)
+
+geom_col(aes(y = num_instal),
+fill = "steelblue", alpha = 0.8) +
+
+# SREC price band (floor → ceiling)
+
+geom_ribbon(
+aes(
+ymin = auction_net * scale_factor,
+ymax = acp_srec2 * scale_factor
+),
+fill = "orange",
+alpha = 0.3
+) +
+
+# Floor price (actual payout)
+
+geom_line(
+aes(y = auction_net * scale_factor),
+color = "black",
+linewidth = 1.2
+) +
+
+geom_point(
+aes(y = auction_net * scale_factor),
+color = "black"
+) +
+
+# Dual axis
+
+scale_y_continuous(
+name = "Number of Installations",
+sec.axis = sec_axis(~ . / scale_factor, name = "SREC Price ($)")
+) +
+
+scale_x_continuous(breaks = seq(2010, 2025, 1)) +
+
+labs(
+title = "Massachusetts Solar Installations vs SREC Price Range",
+subtitle = "Bars = installations | Black line = SREC auction value | Orange band = price range",
+x = "Year"
+) +
+
+theme_minimal()
+
+
+```
+```{r}
+
+# ================================
+
+# Massachusetts Solar + SREC Analysis
+
+# ================================
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tibble)
+
+# -------------------------------
+
+# 1. SREC price dataset (DOER-based)
+
+# -------------------------------
+
+ma_srec <- tibble(
+year = 2010:2025,
+
+# SREC-I ACP (ceiling)
+
+acp_srec1 = c(
+600, 550, 550, 550,
+523, 496, 472, 448,
+426, 404, 384, 365,
+347, 330, 330, 330
+),
+
+# SREC-II ACP (NA before 2014)
+
+acp_srec2 = c(
+NA, NA, NA, NA,
+375, 375, 350, 350,
+350, 333, 316, 300,
+285, 271, 257, 244
+),
+
+# Auction clearinghouse price (floor before fee)
+
+auction_price = c(
+300, 300, 300, 300,
+300, 300, 300,
+285, 271, 257,
+244, 232, 221,
+210, 199, 189
+),
+
+# Net to seller (after 5% fee)
+
+auction_net = auction_price * 0.95
+)
+
+# -------------------------------
+
+# 2. Prepare installations data
+
+# -------------------------------
+
+installs_yearly <- mass_solar_clean |>
+filter(
+facility_type == "Residential (3 or fewer dwelling units per building)",
+year >= 2010
+) |>
+mutate(year = year(as.Date(date_in_service))) |>
+count(year, name = "num_instal")
+
+# -------------------------------
+
+# 3. Merge datasets
+
+# -------------------------------
+
+plot_data <- installs_yearly |>
+left_join(ma_srec, by = "year")
+
+# -------------------------------
+
+# 4. Scale factor for dual axis
+
+# -------------------------------
+
+scale_factor <- max(plot_data$num_instal, na.rm = TRUE) /
+max(plot_data$auction_net, na.rm = TRUE)
+
+# -------------------------------
+
+# 5. Visualization
+
+# -------------------------------
+
+ggplot(plot_data, aes(x = year)) +
+
+# Installations (bars)
+
+geom_col(aes(y = num_instal),
+fill = "steelblue", alpha = 0.8) +
+
+# SREC price band (floor → ceiling)
+
+geom_ribbon(
+aes(
+ymin = auction_net * scale_factor,
+ymax = acp_srec2 * scale_factor
+),
+fill = "orange",
+alpha = 0.3
+) +
+
+# Floor price (actual payout)
+
+geom_line(
+aes(y = auction_net * scale_factor),
+color = "black",
+linewidth = 1.2
+) +
+
+geom_point(
+aes(y = auction_net * scale_factor),
+color = "black"
+) +
+
+# Dual axis
+
+scale_y_continuous(
+name = "Number of Installations",
+sec.axis = sec_axis(~ . / scale_factor, name = "SREC Price ($)")
+) +
+
+scale_x_continuous(breaks = seq(2010, 2025, 1)) +
+
+labs(
+title = "Massachusetts Solar Installations vs SREC Price Range",
+subtitle = "Bars = installations | Black line = SREC auction value | Orange band = price range",
+x = "Year"
+) +
+
+theme_minimal()
+
+```
+
+You can also embed plots, for example:
+```{r}
+# ================================
+# Massachusetts Solar + SREC + SMART Analysis (Corrected)
+# ================================
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tibble)
+
+# -------------------------------
+# 1. SREC PRICE DATA (DOER-BASED)
+# -------------------------------
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(auction_net = auction_price * 0.95)
+
+# -------------------------------
+# 2. SMART INCENTIVE (RESIDENTIAL APPROX)
+# -------------------------------
+smart <- tibble(
+  year = 2018:2025,
+
+  # $/kWh adder (approx program averages)
+  smart_adder_kwh = c(
+    0.10, 0.095, 0.090, 0.080,
+    0.070, 0.060, 0.050, 0.045
+  )
+) |>
+  mutate(
+    # convert to $/MWh equivalent for comparability
+    smart_price_mwh = smart_adder_kwh * 1000
+  )
+
+# -------------------------------
+# 3. INSTALLATIONS (YEARLY)
+# -------------------------------
+installs_yearly <- mass_solar_clean |>
+  filter(
+    facility_type == "Residential (3 or fewer dwelling units per building)",
+    year >= 2010
+  ) |>
+  mutate(year = year(as.Date(date_in_service))) |>
+  count(year, name = "num_instal")
+
+# -------------------------------
+# 4. MERGE ALL DATA
+# -------------------------------
+plot_data <- installs_yearly |>
+  left_join(ma_srec, by = "year") |>
+  left_join(smart, by = "year") |>
+  arrange(year)
+
+# -------------------------------
+# 5. SCALE FACTOR (SREC + SMART)
+# -------------------------------
+scale_factor <- max(plot_data$num_instal, na.rm = TRUE) /
+  max(
+    c(plot_data$auction_net, plot_data$smart_price_mwh),
+    na.rm = TRUE
+  )
+
+# -------------------------------
+# 6. MAIN VISUALIZATION
+# -------------------------------
+ggplot(plot_data, aes(x = year)) +
+
+  # Installations
+  geom_col(aes(y = num_instal),
+           fill = "steelblue", alpha = 0.8) +
+
+  # SREC floor price (black line)
+  geom_line(
+    aes(y = auction_net * scale_factor),
+    color = "black",
+    linewidth = 1.2
+  ) +
+
+  geom_point(
+    aes(y = auction_net * scale_factor),
+    color = "black"
+  ) +
+
+  # SMART incentive (green line, only post-2018 visible)
+  geom_line(
+    aes(y = smart_price_mwh * scale_factor),
+    color = "darkgreen",
+    linewidth = 1.2,
+    na.rm = TRUE
+  ) +
+
+  geom_point(
+    aes(y = smart_price_mwh * scale_factor),
+    color = "darkgreen",
+    na.rm = TRUE
+  ) +
+
+  # X-axis readability
+  scale_x_continuous(
+    breaks = seq(2010, 2025, by = 2)
+  ) +
+
+  # Dual axis
+  scale_y_continuous(
+    name = "Number of Installations",
+    sec.axis = sec_axis(~ . / scale_factor,
+                        name = "Incentive ($/MWh equivalent)")
+  ) +
+
+  labs(
+    title = "Massachusetts Solar Installations vs SREC and SMART Incentives",
+    subtitle = "Black = SREC payouts | Green = SMART incentives | Bars = installations",
+    x = "Year"
+  ) +
+
+  theme_minimal()
+
+# -------------------------------
+# 7. DOES PRICE DRIVE INSTALLS?
+# -------------------------------
+
+analysis_data <- plot_data |>
+  mutate(
+    srec_price = auction_net,
+    srec_price_lag1 = lag(srec_price, 1),
+
+    smart_price = smart_price_mwh,
+    smart_price_lag1 = lag(smart_price, 1),
+
+    policy_period = case_when(
+      year <= 2014 ~ "SREC-1",
+      year <= 2018 ~ "SREC-2",
+      TRUE ~ "SMART"
+    )
+  )
+
+# Correlation (SREC)
+cor(analysis_data$num_instal,
+    analysis_data$srec_price_lag1,
+    use = "complete.obs")
+
+# Regression: SREC effect
+model1 <- lm(num_instal ~ srec_price_lag1, data = analysis_data)
+summary(model1)
+
+# Regression: policy effect
+model2 <- lm(num_instal ~ srec_price_lag1 + policy_period,
+             data = analysis_data)
+summary(model2)
+
+# Regression: SMART signal
+model3 <- lm(num_instal ~ smart_price_lag1, data = analysis_data)
+summary(model3)
+
+# -------------------------------
+# 8. DIAGNOSTIC PLOT
+# -------------------------------
+ggplot(analysis_data, aes(x = srec_price_lag1, y = num_instal)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(
+    title = "Do SREC Prices Drive Installations?",
+    x = "Lagged SREC Price ($/MWh equivalent)",
+    y = "Installations"
+  ) +
+  theme_minimal()
+```
+```{r}
+# ================================
+# Massachusetts SREC Price Range (NO installations)
+# ================================
+
+library(dplyr)
+library(ggplot2)
+library(tibble)
+
+# -------------------------------
+# 1. SREC price dataset (DOER-based)
+# -------------------------------
+
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2)
+  )
+
+# -------------------------------
+# 2. PLOT ONLY SREC PRICE RANGE
+# -------------------------------
+
+ggplot(ma_srec, aes(x = year)) +
+
+  # Price band (floor → ceiling)
+  geom_ribbon(
+    aes(
+      ymin = auction_net,
+      ymax = acp
+    ),
+    fill = "orange",
+    alpha = 0.4
+  ) +
+
+  # Floor price (actual payout)
+  geom_line(
+    aes(y = auction_net),
+    color = "black",
+    linewidth = 1.2
+  ) +
+
+  geom_point(
+    aes(y = auction_net),
+    color = "black"
+  ) +
+
+  scale_x_continuous(breaks = seq(2010, 2025, 1)) +
+
+  labs(
+    title = "Massachusetts SREC Price Evolution (2010–2025)",
+    subtitle = "Black = clearing price (floor) | Orange band = policy price range (floor to ACP)",
+    x = "Year",
+    y = "SREC Price ($/MWh)"
+  ) +
+
+  theme_minimal()
+
+```
+```{r}
+# ================================
+# Massachusetts SREC: Correlation + Regression (2010–2018)
+# Fully self-contained
+# ================================
+
+library(dplyr)
+library(lubridate)
+
+# -------------------------------
+# 1. SREC price dataset (DOER-based)
+# -------------------------------
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2)
+  )
+
+# -------------------------------
+# 2. Installations (annual)
+# -------------------------------
+installs_yearly <- mass_solar_clean |>
+  filter(
+    facility_type == "Residential (3 or fewer dwelling units per building)"
+  ) |>
+  mutate(year = year(as.Date(date_in_service))) |>
+  filter(year >= 2010, year <= 2018) |>
+  count(year, name = "num_instal")
+
+# -------------------------------
+# 3. Merge datasets
+# -------------------------------
+analysis_data <- installs_yearly |>
+  left_join(ma_srec, by = "year") |>
+  mutate(
+    srec_floor = auction_net,
+    srec_ceiling = acp,
+    srec_mid = (auction_net + acp) / 2
+  )
+
+# -------------------------------
+# 4. Correlations
+# -------------------------------
+cor_floor <- cor(analysis_data$num_instal, analysis_data$srec_floor, use = "complete.obs")
+cor_ceiling <- cor(analysis_data$num_instal, analysis_data$srec_ceiling, use = "complete.obs")
+cor_mid <- cor(analysis_data$num_instal, analysis_data$srec_mid, use = "complete.obs")
+
+cor_floor
+cor_ceiling
+cor_mid
+
+# -------------------------------
+# 5. Linear regressions
+# -------------------------------
+
+model_floor <- lm(num_instal ~ srec_floor, data = analysis_data)
+summary(model_floor)
+
+model_ceiling <- lm(num_instal ~ srec_ceiling, data = analysis_data)
+summary(model_ceiling)
+
+model_range <- lm(num_instal ~ srec_floor + srec_ceiling, data = analysis_data)
+summary(model_range)
+```
+```{r}
+library(dplyr)
+library(zoo)
+library(ggplot2)
+
+# -------------------------------
+# 1. Build full dataset (2010–2018 SREC era)
+# -------------------------------
+ma_srec <- tibble(
+  year = 2010:2025,
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2)
+  )
+
+installs_yearly <- mass_solar_clean |>
+  filter(
+    facility_type == "Residential (3 or fewer dwelling units per building)"
+  ) |>
+  mutate(year = lubridate::year(as.Date(date_in_service))) |>
+  filter(year >= 2010) |>
+  count(year, name = "num_instal")
+
+data <- installs_yearly |>
+  left_join(ma_srec, by = "year") |>
+  arrange(year)
+
+# -------------------------------
+# 2. Rolling correlation (3-year window)
+# -------------------------------
+data$roll_cor <- zoo::rollapply(
+  data = data.frame(data$num_instal, data$auction_net),
+  width = 3,
+  FUN = function(x) cor(x[,1], x[,2], use = "complete.obs"),
+  by.column = FALSE,
+  align = "right",
+  fill = NA
+)
+
+# -------------------------------
+# 3. Plot rolling correlation
+# -------------------------------
+ggplot(data, aes(x = year, y = roll_cor)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(2010, 2018, 1)) +
+  labs(
+    title = "Rolling Correlation: SREC Prices vs Solar Adoption (Massachusetts)",
+    subtitle = "3-year moving correlation (auction_net vs installations)",
+    x = "Year",
+    y = "Correlation"
+  ) +
+  theme_minimal()
+```
+```{r}
+# ================================
+# Massachusetts Solar: Rolling Correlation (2010–2018 only)
+# ================================
+
+library(dplyr)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+library(tibble)
+
+# -------------------------------
+# 1. SREC price dataset
+# -------------------------------
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2)
+  )
+
+# -------------------------------
+# 2. Installations (STRICT 2010–2018)
+# -------------------------------
+installs_yearly <- mass_solar_clean |>
+  filter(
+    facility_type == "Residential (3 or fewer dwelling units per building)"
+  ) |>
+  mutate(year = year(as.Date(date_in_service))) |>
+  filter(year >= 2010, year <= 2018) |>
+  count(year, name = "num_instal")
+
+# -------------------------------
+# 3. Merge
+# -------------------------------
+data <- installs_yearly |>
+  left_join(ma_srec, by = "year") |>
+  arrange(year)
+
+# -------------------------------
+# 4. Rolling correlation (3-year window)
+
+roll_mat <- cbind(data$num_instal, data$auction_net)
+
+# -------------------------------
+data$roll_cor <- zoo::rollapply(
+  roll_mat,
+  width = 3,
+  FUN = function(x) cor(x[,1], x[,2], use = "complete.obs"),
+  by.column = FALSE,
+  align = "right",
+  fill = NA
+)
+# -------------------------------
+# 5. FORCE correct x-axis range
+# -------------------------------
+data <- data |>
+  filter(year >= 2010, year <= 2018)
+
+# -------------------------------
+# 6. Plot
+# -------------------------------
+ggplot(data, aes(x = year, y = roll_cor)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(2010, 2018, 1)) +
+  coord_cartesian(xlim = c(2010, 2018)) +
+  labs(
+    title = "Rolling Correlation: SREC Prices vs Solar Adoption (2010–2018)",
+    subtitle = "3-year moving correlation (auction_net vs installations)",
+    x = "Year",
+    y = "Correlation"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+# ================================
+# Massachusetts SMART Rates by Policy Era (Approx)
+# ================================
+
+library(dplyr)
+library(ggplot2)
+library(tibble)
+
+# -------------------------------
+# 1. SMART dataset (approximation)
+# -------------------------------
+smart_rates <- tibble(
+  year = 2018:2025,
+
+  base_rate = c(
+    0.10, 0.095, 0.090, 0.080,
+    0.070, 0.060, 0.050, 0.045
+  ),
+
+  avg_adder = c(
+    0.035, 0.035, 0.035, 0.030,
+    0.030, 0.025, 0.025, 0.025
+  )
+) |>
+  mutate(
+    total_rate = base_rate + avg_adder,
+
+    smart_phase = case_when(
+      year <= 2020 ~ "SMART 1.0",
+      year <= 2023 ~ "SMART 2.0",
+      TRUE ~ "SMART 3.0"
+    )
+  )
+
+# -------------------------------
+# 2. Plot segmented SMART phases
+# -------------------------------
+ggplot(smart_rates, aes(x = year, y = total_rate)) +
+
+  geom_line(color = "darkgreen", linewidth = 1.2) +
+  geom_point(color = "darkgreen", size = 2) +
+
+  geom_point(aes(color = smart_phase), size = 3) +
+
+  scale_color_manual(
+    values = c(
+      "SMART 1.0" = "blue",
+      "SMART 2.0" = "orange",
+      "SMART 3.0" = "red"
+    )
+  ) +
+
+  scale_x_continuous(breaks = 2018:2025) +
+
+  labs(
+    title = "Massachusetts SMART Compensation Rates by Policy Phase",
+    subtitle = "Phases reflect declining block structure over time (not official program names)",
+    x = "Year",
+    y = "Compensation Rate ($/kWh)",
+    color = "SMART Phase"
+  ) +
+
+  theme_minimal()
+
+```
+```{r}
+# ================================
+# Massachusetts SMART Guideline → Clean Tibble (NO CSV, NO PDF tools)
+# Source:
+# https://www.mass.gov/doc/capacity-block-base-compensation-rate-and-compensation-rate-adder-guideline-1/download
+# ================================
+
+library(dplyr)
+library(stringr)
+library(tibble)
+
+# -------------------------------
+# 1. Download PDF manually or via R
+# -------------------------------
+url <- "https://www.mass.gov/doc/capacity-block-base-compensation-rate-and-compensation-rate-adder-guideline-1/download"
+pdf_file <- "smart_guideline.pdf"
+
+download.file(url, pdf_file, mode = "wb")
+
+# -------------------------------
+# 2. Extract raw text using system call (no packages)
+# -------------------------------
+# Requires poppler installed (pdftotext is standard on most systems)
+
+system(paste("pdftotext", pdf_file, "smart.txt"))
+
+raw_text <- readLines("smart.txt", warn = FALSE)
+
+# -------------------------------
+# 3. Clean text
+# -------------------------------
+clean_lines <- raw_text |>
+  str_squish() |>
+  discard(~ .x == "")
+
+# -------------------------------
+# 4. Extract key rows (utilities + numeric values)
+# -------------------------------
+smart_rows <- clean_lines |>
+  str_subset("Eversource|National Grid|Unitil|\\d+\\.\\d+")
+
+# -------------------------------
+# 5. Parse structured fields
+# -------------------------------
+smart_df <- tibble(raw = smart_rows) |>
+  mutate(
+    utility = str_extract(raw, "Eversource|National Grid|Unitil"),
+
+    numbers = str_extract_all(raw, "\\d+\\.\\d+|\\d+"),
+
+    text = str_remove_all(raw, "\\d+\\.\\d+|\\d+")
+  )
+
+# -------------------------------
+# 6. Expand numeric columns safely
+# -------------------------------
+smart_clean <- smart_df |>
+  mutate(
+    rate_1 = sapply(numbers, function(x) as.numeric(x[1])),
+    rate_2 = sapply(numbers, function(x) as.numeric(x[2])),
+    rate_3 = sapply(numbers, function(x) as.numeric(x[3]))
+  ) |>
+  select(utility, rate_1, rate_2, rate_3, text)
+
+# -------------------------------
+# 7. Final tidy dataset
+# -------------------------------
+smart_clean
+```
+```{r}
+
+
+Base_compensation_rates <- read_csv("C:/Users/pschnell/Downloads/Base compensation rates.csv")
+View(Base_compensation_rates)
+
+```
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

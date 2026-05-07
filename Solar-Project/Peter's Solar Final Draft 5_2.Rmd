@@ -72,6 +72,130 @@ ggplot(all_mass_year, aes(x=year))+
 labs(y="Number of Instalations", x="Year", fill="Number covered by grants")
 ```
 ```{r}
+# install.packages(c("ggplot2", "dplyr", "scales"))
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (“Energy Tax Act)",
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar Grants",
+    "SREC I",
+    "SREC II",
+    "Mass CEC Solar Loan Program",
+    "Mass Smart",
+    "Mass CEC EmPower Grants"
+  ),
+
+  start = as.Date(c(
+    "1978-01-01",
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+
+  end = as.Date(c(
+    "1985-12-31",
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+# Reverse order for plotting
+solar_programs$program <- factor(
+  solar_programs$program,
+  levels = rev(solar_programs$program)
+)
+
+# Every-other-year breaks starting at 1978
+year_breaks <- seq(
+  as.Date("1978-01-01"),
+  as.Date("2034-01-01"),
+  by = "2 years"
+)
+
+# Plot
+ggplot(solar_programs) +
+
+  # Narrow timeline bars
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 4,
+    color = "blue"
+  ) +
+
+  # X-axis formatting
+  scale_x_date(
+    breaks = year_breaks,
+    date_minor_breaks = "1 year",
+    labels = label_date("%Y"),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+
+  labs(
+    title = "Massachusetts & Federal Solar Incentives",
+    x = "Year",
+    y = NULL
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    panel.grid.major.x = element_line(
+      color = "gray",
+      linewidth = 0.45
+    ),
+
+    panel.grid.minor.x = element_line(
+      color = "gray",
+      linewidth = 0.25
+    ),
+
+    panel.grid.major.y = element_line(color = "gray"),
+    panel.grid.minor.y = element_blank(),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      size = 8
+    ),
+
+    axis.text.y = element_text(
+      face = "bold",
+      size = 10
+    ),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11)
+  )
+```
+```
+
+```{r}
 all_mass_year_type<-mass_solar_clean|>
   group_by(year, facility_type)|>
  summarise(mw=sum(capacity_dc_k_w)/1000)
@@ -138,6 +262,9 @@ labs(y="Total Capacity DC (MW)", x="Year", fill="Facility Type")
 
 
 ```
+tax credit could be added to the federal credit, and had remained steady since it was passed, and despite federal funding cuts. Sources: (mass solar) (Read more about Massachusetts tax credit here)
+
+
 ```{r}
 all_mass_year_type<-mass_solar_clean|>
   filter(facility_type=="Community Solar")|>
@@ -171,6 +298,20 @@ labs(y="Number of Instalations", x="Year", fill="Facility Type")
 ```
 ```{r}
 mass_com_solar_ave<-mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")|>
+  group_by(year)|>
+  summarise(mean=mean(capacity_dc_k_w))
+
+
+
+ggplot(mass_com_solar_ave, aes(x=year, y=mean))+
+  geom_line()+
+  ggtitle("Average Capacity of Registered Community Solar Instalations in Massachusets ")+
+ labs(y="Capacity of Instalations (MW)", x="Year", )
+
+```
+```{r}
+mass_com_solar_ave<-mass_solar_clean|>
   filter(facility_type=="Community Solar")|>
   group_by(year)|>
   summarise(mean=mean(capacity_dc_k_w))
@@ -179,7 +320,6 @@ ggplot(mass_com_solar_ave, aes(x=year, y=mean))+
   geom_line()+
   ggtitle("Average Capacity of Registered Community Solar Instalations in Massachusets ")+
  labs(y="Capacity of Instalations (MW)", x="Year", )
-
 ```
 
 
@@ -419,7 +559,77 @@ ggplot(ma_srec, aes(x = year)) +
     y = "SREC Price ($/MWh)"
   ) +
 
-  theme_minimal()
+  theme_clean()
+```
+
+
+```{r}
+# install.packages("ggplot2")
+
+library(ggplot2)
+
+# SMART incentive values
+values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+)
+
+# Create dataframe
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive = values
+)
+
+# Plot
+ggplot(smart_df, aes(x = Block, y = Incentive)) +
+
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.2
+  ) +
+
+  geom_point(
+    color = "darkblue",
+    size = 2.5
+  ) +
+
+  geom_text(
+    aes(label = round(Incentive, 3)),
+    vjust = -0.8,
+    size = 3
+  ) +
+
+  scale_x_continuous(
+    breaks = 1:16
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline by Block",
+    subtitle = "≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Capacity Block",
+    y = "Incentive Rate ($/kWh)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+
+  theme(
+    panel.grid.minor = element_line(color = "grey92"),
+    panel.grid.major = element_line(color = "grey80"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    axis.text = element_text(size = 10)
+  )
+```
+
+```{r}
+	Less than or equal to 25 kW AC	200%	10-year	$0.31126	$0.29881	$0.28686	$0.27538	$0.26437	$0.25379	$0.24364	$0.23390	$0.22454	$0.21556	$0.20694	$0.19866	$0.19071	$0.18308	$0.17576	$0.16873
+
 ```
 
 ```{r}
