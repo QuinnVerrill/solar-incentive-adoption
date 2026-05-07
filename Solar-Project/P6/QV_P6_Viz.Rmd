@@ -13,6 +13,10 @@ library(tmap)
 library(DT)
 library(readr)
 library(rvest)
+library(ggplot2)
+library(chromote)
+library(tigris)
+library(dplyr)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -95,41 +99,107 @@ median_income_town <- town2 |>
 #joining data frames
 sunroof_towns <- left_join(wrangled_sunroof, median_income_town, by = c("region_name"="town")) |> 
   select(region_name, count_qualified, percent_covered, percent_qualified, number_of_panels_median, number_of_panels_total, existing_installs_count, median_income_per_capita) |>
-  drop_na()
+  left_join(mass_city, by=c("region_name"="city"))|>
+  mutate(pop_2020_num = as.numeric(gsub("[, ]", "" , pop_2020))) |>
+  drop_na() 
+
+#attempting to normalize by population...
+sunroof_towns$existing_installs_per_capita <- (sunroof_towns$existing_installs_count/sunroof_towns$pop_2020_num)
+
+
 ```
 
 ```{r}
-ggplot(sunroof_towns, aes(x=median_income_per_capita,y=percent_qualified)) +
+
+#getting spatial geometry data for each town/city in MA
+
+options(tigris_class = "sf")
+ma_municipalities <- county_subdivisions(state = "MA", cb = TRUE)
+
+ma_towns_geo <- ma_municipalities |>
+  select(NAME, GEOID, geometry) |>
+  rename(town_name = NAME)
+
+plot(st_geometry(ma_towns_geo), main = "Massachusetts Cities and Towns")
+
+#joining with sunroof_towns
+
+```
+
+```{r}
+p1 <- ggplot(sunroof_towns, aes(x=median_income_per_capita,y=percent_qualified, fill=region_name)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE)+
   ggtitle("Median Income per Capita vs Percent Qualified for Rooftop Solar", subtitle="Broken down by town/city in MA" )+
   labs(x="Median Income per Capita ($)", y="Percent Qualified")
+ggplotly(p1)
 
-ggplot(sunroof_towns, aes(x=median_income_per_capita,y=number_of_panels_median)) +
+p2 <- ggplot(sunroof_towns, aes(x=median_income_per_capita,y=number_of_panels_median, fill=region_name)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE) +
   ggtitle("Median Income per Capita vs Median Number of Installed Rooftop Solar Panels", subtitle="Broken down by town/city in MA")+
   labs(x="Median Income per Capita ($)", y="Number of Panels Median")
+ggplotly(p2)
 
-ggplot(sunroof_towns, aes(x=median_income_per_capita,y=existing_installs_count)) +
+p3 <- ggplot(sunroof_towns, aes(x=median_income_per_capita,y=existing_installs_count, fill=region_name)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE) +
   ggtitle("Median Income per Capita vs Existing Rooftop Solar Installations", subtitle="Broken down by town/city in MA")+
   labs(x="Median Income per Capita ($)", y="Existing Installs")
+ggplotly(p3)
 
 
 ```
 
 ```{r}
 #scraping inscentive types from sunroof site
-url2<-"https://sunroof.withgoogle.com/data-explorer/place/ChIJB7hZlAuB44kR5qHpVksRj1I/"
-webpage2<-rvest::read_html(url2)
-
-needham_inscentives <- webpage2 |>
-  html_nodes(".incentive-wide-column") |>
+url <- "https://sunroof.withgoogle.com/data-explorer/place/ChIJ6duAGcKF44kRcPcl1AELMAs/"
+b <-ChromoteSession$new()
+b$Page$navigate(url)
+Sys.sleep(5)
+webpage3 <- read_html(b$Runtime$evaluate("document.documentElement.outerHTML")$result$value)
+needham_inscentives <- webpage3 |>
+  html_nodes(".place-incentives-content .incentive-wide-column") |>
   html_text2() 
-test<-tibble(needham_inscentives=test)
 ```
+
+Prices of Solar Installations and Electricity over time
+
+```{r}
+#importing datasets
+
+solar_inst_costs <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/solar-installed-system-cost-analysis_residential.csv", 
+    col_types = cols(`Cost Type` = col_factor(levels = c("Hardware", 
+        "Soft Costs")))) |>
+  select(Year, Value, `Cost Type`)
+
+#from NREL
+
+elec_price_03_26 <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/electricity-avg-price-2003-2026.csv", 
+    col_types = cols(observation_date = col_date(format = "%Y-%m-%d"))) |>
+  mutate(cost = APU000072610) |>
+  drop_na()
+#from federal reserve
+
+```
+
+```{r}
+#plotting
+ggplot(elec_price_03_26, aes(x=observation_date, y=cost, theme(size=0.1)))+
+  geom_line() +
+  labs(y="Cost ($) per kWh", x=NULL, title="Average Electricity Cost ($) per Kilowatt-Hour in U.S. City", subtitle="Source: U.S. Bureau of Labor Statistics via FRED")+
+  theme_clean()
+
+ggplot(solar_inst_costs, aes(x=Year, y=Value, fill=`Cost Type`))+
+  geom_col()+
+  scale_y_continuous()+
+  theme_clean()+
+  labs(x=NULL, y="Total Estimated Installation Cost ($) per Watt", title="Estimated Installation Cost ($) of Residential Rooftop (US)", subtitle="Source: NREL Solar Installed System Cost Analysis", caption="Hardware costs include PV modules, inverters. \n Soft costs include import fees tarifs, labor, permits, etc.")
+
+  
+```
+
+Code Archive:
 
 ```{r, eval=FALSE}
 #getting the geography and location data for the counties in MA - this takes forever to run for some reason

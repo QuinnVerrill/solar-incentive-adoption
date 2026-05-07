@@ -1,0 +1,81 @@
+﻿Year,Cost Type,Type,Scale,Metric,Value
+2025,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.321
+2024,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.4
+2023,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.338190596
+2022,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.659007061
+2021,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.377703168
+2020,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.464555324
+2019,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.462826961
+2018,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.552767197
+2017,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.42074955
+2016,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.788907391
+2015,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.868035452
+2014,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.884526727
+2013,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),0.920229195
+2012,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),1.332980204
+2011,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),2.566621688
+2010,Hardware,Module,Residential Rooftop,Cost (2024$/Wdc),3.056402038
+2025,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.357
+2024,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.37
+2023,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.314097623
+2022,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.474933704
+2021,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.303877411
+2020,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.286514678
+2019,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.297552337
+2018,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.246981088
+2017,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.232581118
+2016,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.264575484
+2015,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.361335332
+2014,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.38895126
+2013,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.519130345
+2012,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.550016103
+2011,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.818779054
+2010,Hardware,Inverter,Residential Rooftop,Cost (2024$/Wdc),0.549759681
+2025,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.532
+2024,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.62
+2023,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.569728844
+2022,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.494195637
+2021,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.362931303
+2020,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.357490563
+2019,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.370225367
+2018,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.36459113
+2017,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.429731559
+2016,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.44972071
+2015,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.410059788
+2014,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.577153483
+2013,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.622811018
+2012,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.575304449
+2011,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.610646897
+2010,Hardware,BOS,Residential Rooftop,Cost (2024$/Wdc),0.664685788
+2025,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.495
+2024,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.64
+2023,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.28173284
+2022,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.381592098
+2021,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.749935496
+2020,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.779622679
+2019,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.824344509
+2018,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.705345609
+2017,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.914375119
+2016,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.744525136
+2015,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.799622564
+2014,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.869475413
+2013,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),1.628417958
+2012,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),2.091055565
+2011,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),2.734683654
+2010,Soft Costs,"Soft Costs - Other (PII, Sales Tax, Overhead, and Profit)",Residential Rooftop,Cost (2024$/Wdc),3.004485046
+2025,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.244
+2024,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.21
+2023,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.178429054
+2022,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.172777798
+2021,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.206598414
+2020,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.213767398
+2019,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.219344107
+2018,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.317547113
+2017,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.365412833
+2016,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.366185811
+2015,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.411555736
+2014,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.401498075
+2013,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.991015878
+2012,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.797706596
+2011,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),0.846711787
+2010,Soft Costs,Labor,Residential Rooftop,Cost (2024$/Wdc),1.33854439
