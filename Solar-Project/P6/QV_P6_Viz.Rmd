@@ -124,6 +124,25 @@ plot(st_geometry(ma_towns_geo), main = "Massachusetts Cities and Towns")
 
 #joining with sunroof_towns
 
+
+```
+
+```{r}
+ggplot(data = ma_towns_geo) +
+  geom_sf(aes(fill = sunroof_geo$existing_installs_per_capita), color = "white", size = 0.1) +
+  scale_fill_viridis_c(
+    option = "plasma",
+    na.value = "grey80",
+    name = "Value Legend") +
+  labs(title = "Massachusetts Spatial Mapping by Town",
+    subtitle = "Visualizing custom variable distribution",
+    caption = "Source: US Census TIGER/Line via tigris") +
+  theme_clean() + 
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
 ```
 
 ```{r}

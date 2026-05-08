@@ -1,0 +1,575 @@
+---
+title: "Are Solar Incentives Effective in Increasing Adoption Rates?"
+output: html_document
+date: "2026-05-07"
+author: Quinn Verrill & Peter Schnell
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(DT)
+library(ggplot2)
+library(janitor)
+library(GGally)
+library(RColorBrewer)  
+library(sf)            
+library(leaflet)       
+library(ggthemes)      
+library(socviz)       
+library(usmap) 
+library(usdata) 
+library(choroplethr)
+library(choroplethrMaps)
+library(maps)
+library(rvest)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+
+#imports Data
+mass_solar_messy <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/Solar-PV-Systems-in-MA-as-of-Jan-2025-readable.csv", 
+    col_types = cols(`Date In Service` = col_date(format = "%m/%d/%Y"), 
+        `Total Cost with Design Fees` = col_number(), 
+        `Total Grant` = col_number()))
+
+#cleans names
+mass_solar_clean<-mass_solar_messy |>
+  janitor::clean_names()|>
+   mutate(year=year(date_in_service), month=month(date_in_service),weekday=wday(date_in_service), day=day(date_in_service))
+```
+
+# **Intro**
+
+We are two students at Olin College, taking a class about data science, while hearing ongoing news about federal spending cuts and the roll back of clean energy incentives. 
+
+When faced with an open ended project, we found ourselves wondering about the impact that financial incentives have on the adoption of clean energy technology. How do tax incentives and grants help adoption of new clean infrastructure, specifically solar? Do they prioritize certain communities over others
+
+We decided to focus our efforts specifically on Massachusetts, where Olin’s campus is located, and a state known for progressive clean energy policies and agenda. But where to get data about solar in Massachusetts? 
+
+We also formulated a guiding research question which shaped the course of our project: *How have state and Federal incentives impacted the adoption of residential rooftop solar in Massachusetts over time?*
+
+# **Data:**
+
+### **Mass CEC Production Tracking System:**
+
+After some research, we learned about the [Green Communities Act](https://malegislature.gov/Laws/SessionLaws/Acts/2008/Chapter307), which was signed by Massachusetts Governor Deval Patrick in 2008, creating and funding The Massachusetts Clean Energy Center.  “The Massachusetts Clean Energy Center (MassCEC) is a state economic development agency dedicated to accelerating the growth of the clean energy sector across the Commonwealth” ([Mass CEC](https://www.masscec.com/about)). Within the domain of this center, is the Production Tracking System, with the intent to track new clean energy installations across the state. Thanks to the PTS system and yearly report, Mass CEC provides a publicly available data report containing all of the registered solar projects which received grants or incentives though Massachusetts Solar Renewable Energy Certificate (SREC) and Solar Massachusetts Renewable Target (SMART) programs. 
+
+In an ongoing report, Mass CEC publishes data about the registered Solar PV systems in Massachusetts. This includes numerous categories of information about each registered project, including its date, capacity, type, developer and municipality. This is a full data set and the one that we relied on heavily for the duration of our project. ([Click here to learn more about the PTS system](https://www.masscec.com/production-tracking-system-pts))
+
+### **Incentive Types & Structures:**
+
+Foundational to our research question is an understanding of the solar incentives which are impacting the adoption of solar in the state of Massachusetts. Part of our process in answering our research questions involved a deep dive into researching solar incentives at a state and federal level. A basic knowledge of these different phases of incentive types is necessary to understanding our analysis and insights that we generated. We were struck by the range in the levels of complexity in these incentives, ranging from an umbrella number tax incentive, to extremely granular numbers about exact base rate electricity rebates, and do our best to explain these incentives types below. Figure 2 shows the timeline of different state and federal incentive programs.
+
+```{r, echo=FALSE, fig.width=10}
+# Timeline data
+solar_programs <- data.frame(
+  program = c(
+    "Federal Solar Tax Credit (“Energy Tax Act)",
+    "Federal Solar Tax Credit (ITC)",
+    "MA Solar Tax Credit",
+    "MassCEC Commonwealth Solar Grants",
+    "SREC I",
+    "SREC II",
+    "Mass CEC Solar Loan Program",
+    "Mass Smart",
+    "Mass CEC EmPower Grants"
+  ),
+
+  start = as.Date(c(
+    "1978-01-01",
+    "2006-01-01",
+    "1979-01-01",
+    "2008-01-01",
+    "2010-01-01",
+    "2014-04-25",
+    "2015-06-01",
+    "2018-11-26",
+    "2020-01-01"
+  )),
+
+  end = as.Date(c(
+    "1985-12-31",
+    "2034-12-31",
+    "2030-12-31",
+    "2015-12-31",
+    "2014-04-24",
+    "2018-11-26",
+    "2020-12-31",
+    "2030-12-31",
+    "2030-12-31"
+  ))
+)
+
+solar_programs$program <- factor( solar_programs$program, levels = rev(solar_programs$program))
+
+year_breaks <- seq(
+  as.Date("1978-01-01"),
+  as.Date("2034-01-01"),
+  by = "2 years"
+)
+
+ggplot(solar_programs) +
+  geom_segment(
+    aes(
+      x = start,
+      xend = end,
+      y = program,
+      yend = program
+    ),
+    linewidth = 4,
+    color = "blue"
+  ) +
+
+  # X-axis formatting
+  scale_x_date(
+    breaks = year_breaks,
+    date_minor_breaks = "1 year",
+    labels = label_date("%Y"),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+
+  labs(
+    title = "Massachusetts & Federal Solar Incentives",
+    x = "Year",
+    y = NULL, caption="Figure 1"
+  ) +
+
+  theme_clean() +
+
+  theme(
+    panel.grid.major.x = element_line(
+      color = "gray",
+      linewidth = 0.45
+    ),
+
+    panel.grid.minor.x = element_line(
+      color = "gray",
+      linewidth = 0.25
+    ),
+
+    panel.grid.major.y = element_line(color = "gray"),
+    panel.grid.minor.y = element_blank(),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      size = 8
+    ),
+
+    axis.text.y = element_text(
+      face = "bold",
+      size = 10
+    ),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11)
+  )
+```
+
+#### Federal Tax:
+
+Solar incentives at a federal level can be traced back to the Oil crisis in the 70s, after which Jimmy Carter passed the “Energy Tax Act of 1978, with the Investment Tax Credit providing residential homeowners a 30% federal tax credit for implementing solar, wind or geothermal systems” ([ASES](https://ases.org/will-history-repeat-itself-like-reagans-repeal-of-carters-achievements-in-advancing-solarenergy-willtrump-kill-bidens/)). This meant that 30% of the cost of a new solar was deducted from taxes owed to the federal government. Over time, this credit has been implemented in multiple waves. The Investment tax credit act expired in 1985, but was bought back by President Bush in 2005 ([Solar Review](https://www.solarreviews.com/blog/tax-credit-history-home-solar)s). The Obama administration created a tiered declining tax incentive program, which decreased to a 26% tax break during Trump’s first administration. This was then increased to 35% in 2022 by Biden’s inflation reduction act, but then terminated by Trump’s Big Beautiful Bill in 2025, meaning that currently, there are no federal tax incentives for new solar installations ([EnergySage](https://www.energysage.com/news/congress-passes-bill-ending-residential-solar-tax-credit/)). \
+
+#### State Tax: 
+
+In the late 70’s, following the example set at the federal level, Massachusetts also passed a personal income tax credit for solar installations, providing a 15% state tax credit on personal income up to \$1000 for solar installations, carried forward for up to 3 years. This tax credit could be added to the federal credit, and had remained steady since it was passed, and despite federal funding cuts. Sources: ([Solar Is Working](https://solarisworking.org/history-of-solar-in-massachusetts), [Mass.gov](https://www.mass.gov/regulations/830-CMR-6261-residential-energy-credit))
+
+#### **Upfront Financing from Mass CEC:**
+
+Mass CEC has sequentially used its funding to implement a grant program and a loan program, to lighten the burden of upfront financing for solar installations. Since its start and until 2015, Mass CEC provided financial grants offering partial and even full funding grants towards applicable solar installations through its Commonwealth Solar Program ([MassCEC](https://www.masscec.com/resources/commonwealth-solar-summary-report)). Between 2015 and 2020, Mass CEC had the Mass Solar Loan program, providing fixed interest loans on solar installations ([Mass CEC](https://www.masscec.com/program/mass-solar-loan)). Currently Mass CEC is channeling funding through its EmPower program, where it offers grants to low income households ([MassCEC](https://www.masscec.com/program/empower-massachusetts)). This program has a set end date of December 2026.\
+
+#### **Performance Based Incentives:**
+
+**SREC-1 & SREC-2:**
+
+At a state level, solar incentives affecting Massachusetts residents came after the Massachusetts Restructuring Act of 1997, which created the Massachusetts Renewable Energy Trust Fund, and provided early funding for clean energy projects.
+
+The 1997 act included a mandate for Renewable Portfolio Standards (RPS), which required a certain percentage of an energy company's energy to be from renewable sources. This created a Renewable Energy Credit market, essentially a place for the energy companies to buy the mandated renewable portion of their energy. The Massachusetts’ Solar Renewable Energy Credit (SREC) specifies that a specific amount of the renewable energy put into the grid comes from solar ([Sun Utility](https://www.suntilityelectric.com/the-history-of-massachusetts-srec-programs/)). For this, the Department of Energy Resources (DOER) created the SREC legislation, implemented in 2010, to provide incentives for the development of 400 MW of solar installation capacity across the state of MA. Registered solar installations of varying capacities, would revive one “SREC” for every Megawatt hour they generated. These SRECs could then be sold to energy companies at the going rate determined by the energy market, with a baseline rate set by the DOER. This meant that solar owners could receive guaranteed compensation for each SREC they generated, at a rate that fluctuated with demand, sometimes providing lucrative payouts. 
+
+After it was passed, the 400MW capacity cap set by SREC-1 was passed preemptively in 2013, requiring an emergency extension of the program to 650MW before SREC-2 program was implemented in 2014, mandating an additional 1600MW of capacity. The DOER extended this limit too, until it was able to implement the new Mass SMART program on November 26, 2018.
+
+In SREC-1, all facility types received the standard 1000kW=1 SREC. In SREC-2, a factor system was added to incentivize different industry types ([Mass CEC)](https://www.masscec.com/solar-renewable-energy-certificate-srec)).
+
+We tried pretty hard to find financial data about the SREC sale price point over time, however, all of the sources we found were blocked by paywalls. Instead, we compromised by making the visualization in figure 2 to encapsulate the market price range that was possible given the range set by the state. Massachusetts carve outs for SREC specified a “clearinghouse” price, making a low end cap on the market to ensure that it never fell below a certain threshold, thus stabilizing the market. They also set alternative compliance payments (ACP), which dictated the price energy companies would have to pay for not meeting their solar energy carve out requirements. This essentially put a high end cap on the market, preventing the price if one SREC to go higher than the penalty price. Thus, in figure 2 we can visualize a range that the market was able to fluctuate within. 
+
+```{r, echo=FALSE}
+
+ma_srec <- tibble(
+  year = 2010:2025,
+
+  acp_srec1 = c(
+    600, 550, 550, 550,
+    523, 496, 472, 448,
+    426, 404, 384, 365,
+    347, 330, 330, 330
+  ),
+
+  acp_srec2 = c(
+    NA, NA, NA, NA,
+    375, 375, 350, 350,
+    350, 333, 316, 300,
+    285, 271, 257, 244
+  ),
+
+  auction_price = c(
+    300, 300, 300, 300,
+    300, 300, 300,
+    285, 271, 257,
+    244, 232, 221,
+    210, 199, 189
+  )
+) |>
+  mutate(
+    auction_net = auction_price * 0.95,
+    acp = ifelse(is.na(acp_srec2), acp_srec1, acp_srec2))
+
+ggplot(ma_srec, aes(x = year)) +
+  geom_ribbon(
+    aes(ymin = auction_net, ymax = acp),fill = "orange",alpha = 0.4)+
+  geom_line(aes(y = auction_net), color = "black", linewidth = 1.2) +
+  geom_point(aes(y = auction_net), color = "black") +
+  scale_x_continuous(breaks = seq(2010, 2025, 1)) +
+  labs(title = "Mass SREC Market Price Range Over Time",
+    subtitle = "Black = price set by state\nOrange band = range of penalty price",
+    x = "Year",
+    y = "SREC Price ($/MW)",
+    caption = "Figure 2") +
+  theme_clean()
+
+```
+
+(<https://www.mass.gov/info-details/solar-carve-out-and-solar-carve-out-ii-clearinghouse-auction>)
+
+**Mass SMART 1.0, 2.0, & 3.0**
+
+After the success of the SREC program, Massachusetts replaced it with the Solar Massachusetts Renewable Target (SMART) program. Instead of a fluctuating market setting the price of SREC’s, the SMART program monitors solar energy production and compensates monthly for a fixed rate per KW. It was implemented with a declining block structure, reducing compensation rates in SMART 2.0, enacted in 2022, and SMART 3.0, enacted in 2025.
+
+For individual homeowners buying solar, these fixed rates could be improved by implementing other additions, like a battery, resulting in larger paybacks monthly. There were also factors set to the base compensation rate based on certain demographics and the solar installation type. While the composition provided by the SMART program were on average smaller than the compensation received through SREC’s open market, they were more predictable.
+
+```{r, message=FALSE, warning=FALSE, fig.width=10, echo=FALSE}
+
+incentive_values <- c(
+  0.31126, 0.29881, 0.28686, 0.27538,
+  0.26437, 0.25379, 0.24364, 0.23390,
+  0.22454, 0.21556, 0.20694, 0.19866,
+  0.19071, 0.18308, 0.17576, 0.16873
+) * 1000
+
+# Capacity (MW)
+capacity_values <- c(
+  18.004, 18.004, 18.004, 18.004,
+  18.004, 18.004, 18.004, 18.004,
+  18.093, 18.093, 18.093, 18.093,
+  18.093, 18.093, 18.093, 18.093
+)
+
+# Data frame
+smart_df <- data.frame(
+  Block = 1:16,
+  Incentive_MWh = incentive_values,
+  Capacity_MW = capacity_values
+)
+
+# Colors
+line_blue <- "lightblue"
+point_blue <- "darkblue"
+grey_text <- "black"
+
+ggplot(smart_df, aes(x = Block, y = Incentive_MWh)) +
+
+  # Line
+  geom_line(
+    color = line_blue,
+    linewidth = 1.3
+  ) +
+
+  # Points
+  geom_point(
+    color = point_blue,
+    size = 3
+  ) +
+
+  # Labels shifted right + down
+  geom_text(
+    aes(label = round(Incentive_MWh, 1)),
+    nudge_x = 0.25,
+    nudge_y = -5,
+    size = 3,
+    color = grey_text
+  ) +
+
+  scale_x_continuous(
+    breaks = 1:16
+  ) +
+
+  scale_y_continuous(
+    breaks = seq(150, 325, by = 25),
+    minor_breaks = seq(150, 325, by = 12.5)
+  ) +
+
+  labs(
+    title = "Mass SMART Incentive Decline by Block",
+    subtitle = "Massachusetts Electric (National Grid)\n≤ 25 kW AC — 200% Compensation Rate — 10-Year Term",
+    x = "Block",
+    y = "Incentive Rate ($/MWh)", caption="Figure 3"
+  ) +
+
+  theme_clean() +
+
+  theme(
+    panel.grid.major = element_line(color = "grey85"),
+    panel.grid.minor = element_line(color = "grey92"),
+
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+
+    plot.subtitle = element_text(size = 11),
+
+    axis.text = element_text(size = 10)
+  )
+```
+
+## Data Analysis:
+
+Once we had our data established, and spent some time researching solar incentives, we were ready to analyze and interpret our data. We started by making some general visualizations to better understand the big picture impact that the Solar incentives were having on solar adoption as tracked by Mass CEC. Figure 4 shows the total number of state wide solar installations that was registered with Mass CEC, aggregated by facility type. Figure 5 illustrates the energy capacity added from those installations, aggregated by facility type.
+
+\
+For reference, Massachusetts used \~50 million MW of energy in 2024. (<https://www.eia.gov/electricity/state/massachusetts/>)
+
+```{r, message=FALSE, warning=FALSE, fig.width=10, echo=FALSE}
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year, facility_type)|>
+ summarise(mw=sum(capacity_dc_k_w)/1000)
+
+all_mass_year_mw<-mass_solar_clean|>
+  group_by(year)|>
+summarise(total_mw=sum(capacity_dc_k_w/1000))|>
+ mutate(mw_cum=(cumsum(total_mw)))
+
+all_mass_year_type_mw<-all_mass_year_type|>
+  full_join(all_mass_year_mw) 
+
+all_mass_year_type<-mass_solar_clean|>
+  group_by(year)|>
+  count(facility_type)|>
+ arrange(desc(n))|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+ggplot(all_mass_year_type, aes(x=year, y=num_instal, fill=facility_type))+
+  geom_col()+
+  labs(title= "Registered Solar Installations Over Time by Facility Type", y="Number of Instalations", x="Year", fill="Facility Type", caption="Figure 4") +
+  theme_clean()+
+  theme(legend.text = element_text(size = 4), legend.title = element_text(size = 5))
+
+ggplot(all_mass_year_type_mw, aes(x=year))+
+  geom_col(aes(y=mw, fill=facility_type))+
+  labs(title = "Renewable Energy Production Capacity (MWh) Built Yearly in Massachusetts", y="Renewable Energy Production Capacity (MWh)", x="Year", fill="Facility Type", caption = "Figure 5")+
+  theme_clean()+
+  theme(legend.text = element_text(size = 4), legend.title = element_text(size = 5))
+```
+
+This data shows that the majority of solar installations in the state are residential, but that the energy capacity of those installations is far less significant compared to other types of solar installations, such as commercial or community solar. Large solar arrays will generate substantially more electricity under a single permit.
+
+### **Community Solar**
+
+We were surprised to see the growth of “community solar” in the early 2020s, and decided to explore it a little more. 
+
+But first, what is community solar? Community solar installations are systems where individuals who don’t want or are unable to install their own solar installation, can instead invest in a community solar project run by a community solar company at a fixed price, and then receive energy credit which lowers their cost of energy. Through this they can buy into solar without the need to install an actual system.
+
+```{r,  message=FALSE, warning=FALSE, fig.width=10, echo=FALSE}
+mass_com_solar_ave<-mass_solar_clean|>
+  filter(facility_type=="Community Solar")|>
+  group_by(year)|>
+  summarise(mean=mean(capacity_dc_k_w))
+
+mass_res_solar_ave<-mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)")|>
+  group_by(year)|>
+  summarise(mean=mean(capacity_dc_k_w))
+
+
+ggplot(mass_res_solar_ave, aes(x=year, y=mean))+
+  geom_line()+
+  ggtitle("Average Capacity of Registered Residential Solar Instalations in Massachusets")+
+ labs(y="Capacity of Instalations (MW)", x="Year", caption="Figure 6" )+
+  theme_clean()
+
+ggplot(mass_com_solar_ave, aes(x=year, y=mean))+
+  geom_line()+
+  ggtitle("Average Capacity of Registered Community Solar Instalation in Massachusets")+
+ labs(y="Capacity of Instalations (MW)", x="Year", caption="Figure 7" )+
+  theme_clean()
+```
+
+```{r}
+solar_inst_costs <- read_csv("~/Documents/GitHub/solar-incentive-adoption/Solar-Project/solar-installed-system-cost-analysis_residential.csv", 
+    col_types = cols(`Cost Type` = readr::col_factor(levels = c("Hardware", 
+        "Soft Costs")))) |>
+  select(Year, Value, `Cost Type`)
+
+ggplot(solar_inst_costs, aes(x=Year, y=Value, fill=`Cost Type`))+
+  geom_col()+
+  scale_y_continuous()+
+  theme_clean()+
+  labs(x=NULL, y="Total Estimated Installation Cost ($) per Watt", title="Estimated Installation Cost ($) of Residential Rooftop (US)", subtitle="Source: NREL Solar Installed System Cost Analysis", caption="Hardware costs include PV modules, inverters. \n Soft costs include import fees tarifs, labor, permits, etc.")
+```
+
+These two graphs illustrate how the capacity of solar has been increasing, while the cost decreases. However, it is interesting to see how the average capacity of residential solar has increased steadily, while the average size of a community solar project has had a seemingly burst bubble average capacity of installations. 
+
+Upon further research, we found that this was due new state legislation passing requiring energy companies to modernize their grid infrastructure through the Electric Sector Modernization Plans (ESMP). This meant increased upfront energy costs to large solar installations due to grid capacity and connection slowdowns. This was drafted and passed in 2024, causing the decline and negative outlook on future community solar ([Gazette Net](https://gazettenet.com/2024/03/18/mass-s-worse-year-for-solar-in-over-a-decade-54269761/)).
+
+There are concerns about large ground mounted solar arrays like the ones built by community solar developers. Many times areas are deforested or cropland is replaced with new solar panels, raising important questions about the future of land development and what kind of impacts it has on habitats and the environment in the big picture. While all actions have impact, there is an argument to be made for the prioritization of solar projects built in places which have already been developed, like on rooftops and along roads and parking lots. ([Mass Audubon](https://www.massaudubon.org/our-work/publications-resources/growing-solar-protecting-nature))
+
+### **Residential Solar:**
+
+This brings us back to our guiding question: How have state and Federal incentives impacted the adoption of residential rooftop solar in Massachusetts over time?
+
+While rooftop solar does not generate energy in the same quantities as a commercial solar site or a community installation, it has many less obvious benefits. Rooftop solar is able to directly connect energy production with its location of consumption, reducing losses from transportation. It also is a decentralized system, allowing individuals to own their own energy source, and be part of a contributing node in a broader energy network. In addition, the cost of solar residential solar installations has been 
+
+So, how has solar incentives impacted rooftop solar adoption? In figures 9 and 10, we share multiple visualizations we made to integrate the various timelines of solar incentives at the federal and state level, with our graph of the adoption rate. Because the tax incentives have been comparatively steady, we focused on upfront financing and the Performance Based incentives. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
+all_mass<- mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+all_mass_year<-all_mass|>
+  count(year)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_all<-all_mass|>
+  group_by(year)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+all_grant_year<-all_mass_year|>
+  left_join(grants_all)
+
+all_mass_month<-all_mass|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+
+all_mass_month1<-all_mass_month|>
+  count(year_month)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+grants_all<-all_mass_month|>
+  group_by(year_month)|>
+  summarise(count=sum(has_grant, na.rm=TRUE))
+  
+all_grant_month1<-all_mass_month1|>
+  left_join(grants_all) |>
+  mutate(date = ym(year_month))
+
+ggplot(all_grant_month1, aes(x = date)) +
+  geom_col(aes(y = num_instal, fill = "Total Installations"), width=31) +
+  geom_col(aes(y = count, fill = "Installations with Grants"), width=31) +
+  geom_vline(aes(xintercept = as.Date("2016-12-31"), 
+                 color = "End of Commonwealth Solar, start of Mass Solar"), 
+             linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = as.Date("2020-12-31"), 
+                 color = "End of Mass Solar, start of EmPower"), 
+             linetype = "dashed", linewidth = 1) +
+    scale_fill_manual(values = c("Total Installations" = "gray50",  "Installations with Grants" = "green")) +
+  scale_color_manual(values = c("End of Commonwealth Solar, start of Mass Solar" = "blue","End of Mass Solar, start of EmPower" = "red")) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  labs(
+    title = "All Single Family Solar Installations Over Time, with Grants Received", 
+    subtitle = "Data aggregated by month", 
+    y = "Number of Installations", 
+    x = "Year", 
+    fill = "Installation Type",
+    color = "Program Transitions", 
+    caption = "Figure 9") +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), legend.text = element_text(size = 8), legend.title = element_text(size = 9))
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
+all_mass<- mass_solar_clean|>
+  filter(facility_type=="Residential (3 or fewer dwelling units per building)") |>
+  mutate(has_grant= total_grant>0)|>
+  arrange(desc(total_grant))
+
+all_mass_month<-all_mass|>
+  mutate(year_month=sub("^([^-]*-[^-]*)-.*", "\\1", date_in_service))
+
+all_mass_month1<-all_mass_month|>
+  count(year_month)|>
+ mutate(num_instal=n)|>
+  select(-"n")
+
+all_mass_month2<-all_mass_month1|>
+  mutate(Solar_insentive_type = case_when(
+   between(year_month, "2010-01", "2014-04")~"SREC-1", 
+   between(year_month, "2014-05", "2018-11")~"SREC-2",
+   between(year_month, "2018-12", "2020-06")~"SMART 1.0",
+   between(year_month, "2020-07", "2025-08")~"SMART 2.0",
+   between(year_month, "2025-09", "2026-09")~"SMART 3.0")) |>
+   mutate(date = ym(year_month))
+
+
+ggplot(all_mass_month2, aes(x=date))+
+  geom_col(aes(y=num_instal, fill= Solar_insentive_type), width=31)+
+labs(title = "All Single Family Solar Installations Over Time, by Grant Program", y="Number of Instalations", subtitle = "Data aggregated by month", x="Year", fill = "Grant Program", caption="Figure 10")+
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), legend.text = element_text(size = 8), legend.title = element_text(size = 9))
+
+```
+
+Comparing these two figures, it is clear that the performance based incentive time lines line up notably well with the peaks and dips in the number of installations. The SREC incentives are most dramatic, contributing to a huge spike in adoption numbers. Researching this time period, there seems to have been a period shortly after implementation in 2011 where the prices of an SREC dramatically increased due to high supply and low demand, forcing energy companies to pay top dollar to fill their solar energy requirement. This likely drew a lot of attention to the SREC market in Massachusetts, and drew in individuals who recognized the financial returns possible through the SREC incentive program. This seems to be an example of an incentive working ([Mass.gov](https://www.mass.gov/doc/rps-aps-compliance-year-2011-report/download)).
+
+Figure 11 illustrates the exact timing of the capacity caps on the SREC and SMART programs, and when they were met.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
+ggplot(all_mass_year_type_mw, aes(x = year)) +
+  geom_line(aes(y = mw_cum), linewidth = 1) +
+  geom_hline(aes(yintercept = 650, color = "SREC-1 (0-650 MW)"), 
+             linetype = "dashed", linewidth = 0.8) +
+  geom_hline(aes(yintercept = 2250, color = "SREC-2 (650-2250 MW)"), 
+             linetype = "dashed", linewidth = 0.8) +
+  geom_hline(aes(yintercept = 5450, color = "SMART (2250-5450 MW)"), 
+             linetype = "dashed", linewidth = 0.8) +
+  scale_color_manual(name = "Program Capacity Limits", values = c(
+      "SREC-1 (0-650 MW)" = "purple",  
+      "SREC-2 (650-2250 MW)" = "orange",
+      "SMART (2250-5450 MW)" = "darkred")) +
+  labs(title = "Massachusetts Total Renewable Energy Production Capacity (MW) Over Time", y = "Renewable Energy Production Capacity (MW)", x = "Year", caption= "Figure 11") + 
+  theme_clean()
+```
+
+The apparent connection between the capacity cap of the SREC program, and the decline in projects indicates the effectiveness of the financial incentives and open possibility of a free market, positively influencing solar adoption. For residential adoption, the Mass SMART program appears to have a more steady rate of adoption, which contrasts the earlier visualization about the Community solar spike during the SMART era. This illustrates that the SMART solar program hasn't been effective at increasing the number of residential rooftop solar. And, despite the varying factors factoring low income and residential communities, the SMART program was more effective at influencing higher capacity commercial solar arrays. Currently, the benefits received by new small solar installations are negative, while there are still high incentives for the larger projects ([Gazette Net](https://gazettenet.com/2024/03/18/mass-s-worse-year-for-solar-in-over-a-decade-54269761/)).
+
+This raises a question about the ability of these incentives to negotiate the nuances of the impacts caused by different types of solar siting. Community solar and other large solar arrays have had negative impacts on nearby residents and the environment, but positive contributions to state wide energy goals. Roof top solar has more positive impacts on it’s local residents, but makes less strides towards state energy goals. Perhaps the focus on larger solar sites is an intentional action by the state to meet Massachusetts energy targets ([Hopkinton Independent](https://hopkintonindependent.com/frankland-road-solar-project-underway-as-forest-clearing-begins/)).
+
+## **Conclusions:**
+
+The multiple waves and types of solar incentives have all had varying, but largely positive effects on the adoption of solar in Massachusetts. However, our analysis also reveals the ways that some of these incentives were dramatically more effective than others, which is something that future policy proposals can learn from. The expected conclusion is that larger financial incentives will encourage solar adoption. However, that is not necessarily true. As seen in the SRECs vs SMART, it is possible that the mere possibility of larger financial incentives through an open market can influence adoption, whether those finances are received or not. 
+
+In our research, we learned about Massachusetts' ambitious goals for solar and renewable energies, heightened recently in the Healey administration, and in response to raising energy prices. However, from our data, it is clear that the smaller grid capacity generated by individual households does not align with the larger state goals of dramatic production increases. Because of this, there seems to be a shift happening, seen through our data and research, towards incentives and permitting changes ([Foley Hoag](https://foleyhoag.com/news-and-insights/blogs/energy-and-climate-counsel/2026/march/massachusetts-finalizes-clean-energy-siting-and-permitting-rules/)). which are aimed towards large scale solar installations and away from residential installations, despite the controversy over these larger solar projects.  
+
+Different types of solar siting have different impacts on neighbors, broader energy usage, and the environment as a whole. Our research has also highlighted the possibility of unintended negative impacts caused by certain incentive policies which knowingly or not, exacerbate existing disparities in resource benefit and negative impact distribution across the state ([Mass Live](https://www.masslive.com/opinion/2026/05/states-approach-to-solar-energy-burdens-small-wmass-towns-the-republican-editorials.html).) 
+
+While we learned a ton from this project, we also wanted to acknowledge the limitations of our work thus far. We have just scratched the surface to understanding the behavior patterns that are multifaceted and complex to a degree that cannot be explained by direct correlations alone. And while the data we are using gives the illusion of completeness, it is likely that there are unrepresented solar installations which did not register with MassCEC, such as places with municipality owned utilities.
+
+\
+Thank you for reading our blog post! 
+
+Love,
+
+Peter and Quinn
